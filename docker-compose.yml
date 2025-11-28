@@ -1,0 +1,91 @@
+version: "3.9"
+
+services:
+  traefik:
+    image: traefik:v3.1
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      # Add TLS/ACME here if you want automatic HTTPS
+    ports:
+      - "80:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - devnet
+
+  gitea:
+    image: gitea/gitea:1.22
+    container_name: gitea
+    restart: always
+    environment:
+      - GITEA__server__ROOT_URL=${GITEA_EXTERNAL_URL}
+      - GITEA__server__DOMAIN=gitea.localhost
+      - GITEA__server__SSH_DOMAIN=gitea.localhost
+      - GITEA__webhook__ALLOWED_HOST_LIST=external,loopback
+    volumes:
+      - gitea-data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gitea.rule=Host(`gitea.localhost`)"
+      - "traefik.http.routers.gitea.entrypoints=web"
+      - "traefik.http.services.gitea.loadbalancer.server.port=3000"
+    networks:
+      - devnet
+
+  woodpecker-server:
+    image: woodpeckerci/woodpecker-server:v3
+    container_name: woodpecker-server
+    restart: always
+    depends_on:
+      - gitea
+    environment:
+      # General
+      - WOODPECKER_OPEN=true
+      - WOODPECKER_HOST=${WOODPECKER_HOST}
+      - WOODPECKER_AGENT_SECRET=${WOODPECKER_AGENT_SECRET}
+      # HTTP / gRPC addresses (inside container)
+      - WOODPECKER_SERVER_ADDR=:8000
+      - WOODPECKER_GRPC_ADDR=:9000
+      # Gitea integration
+      - WOODPECKER_GITEA=true
+      - WOODPECKER_GITEA_URL=${GITEA_EXTERNAL_URL}
+      - WOODPECKER_GITEA_CLIENT=${WOODPECKER_GITEA_CLIENT}
+      - WOODPECKER_GITEA_SECRET=${WOODPECKER_GITEA_SECRET}
+    volumes:
+      - woodpecker-server-data:/var/lib/woodpecker/
+    labels:
+      - "traefik.enable=true"
+      # Web UI / HTTP API
+      - "traefik.http.routers.woodpecker.rule=Host(`ci.localhost`)"
+      - "traefik.http.routers.woodpecker.entrypoints=web"
+      - "traefik.http.services.woodpecker.loadbalancer.server.port=8000"
+      # If you later want Traefik to front gRPC for remote agents:
+      # - "traefik.http.services.woodpecker-grpc.loadbalancer.server.port=9000"
+      # - "traefik.http.services.woodpecker-grpc.loadbalancer.server.scheme=h2c"
+    networks:
+      - devnet
+
+  woodpecker-agent:
+    image: woodpeckerci/woodpecker-agent:v3
+    container_name: woodpecker-agent
+    restart: always
+    depends_on:
+      - woodpecker-server
+    environment:
+      - WOODPECKER_SERVER=woodpecker-server:9000
+      - WOODPECKER_AGENT_SECRET=${WOODPECKER_AGENT_SECRET}
+      # Make agent use same Docker network as Gitea so clone URLs just work
+      - WOODPECKER_BACKEND_DOCKER_NETWORK=devnet
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - devnet
+
+networks:
+  devnet:
+
+volumes:
+  gitea-data:
+  woodpecker-server-data:

@@ -1,0 +1,9 @@
+# Web UI + HTTP API
+ci.example.com {
+  reverse_proxy woodpecker-server:8000
+}
+
+# gRPC for remote agents (h2c)
+ci-grpc.example.com {
+  reverse_proxy h2c://woodpecker-server:9000
+}
