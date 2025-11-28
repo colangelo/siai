@@ -40,6 +40,12 @@ services:
     restart: always
     depends_on:
       - gitea
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8000/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     environment:
       # General
       - WOODPECKER_OPEN=true
@@ -72,7 +78,8 @@ services:
     container_name: woodpecker-agent
     restart: always
     depends_on:
-      - woodpecker-server
+      woodpecker-server:
+        condition: service_healthy
     environment:
       - WOODPECKER_SERVER=woodpecker-server:9000
       - WOODPECKER_AGENT_SECRET=${WOODPECKER_AGENT_SECRET}
