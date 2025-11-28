@@ -1,4 +1,4 @@
-version: "3.9"
+# Docker Compose file to set up Gitea with Woodpecker CI, fronted by Traefik v3
 
 services:
   traefik:
@@ -41,7 +41,11 @@ services:
     depends_on:
       - gitea
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8000/healthz || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://localhost:8000/healthz || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
