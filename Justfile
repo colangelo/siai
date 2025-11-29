@@ -138,7 +138,7 @@ gitea-oauth-bash:
 setup:
     #!/usr/bin/env bash
     set -e
-    [ -f .env ] && source .env
+    [ -f .env ] && set -a && source .env && set +a
     export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
     uv run scripts/gitea_setup.py
 
@@ -146,7 +146,7 @@ setup:
 setup-dry-run:
     #!/usr/bin/env bash
     set -e
-    [ -f .env ] && source .env
+    [ -f .env ] && set -a && source .env && set +a
     export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
     uv run scripts/gitea_setup.py --dry-run
 
