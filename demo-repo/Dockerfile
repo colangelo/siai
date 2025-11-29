@@ -14,6 +14,6 @@ RUN uv pip install --system --no-cache .
 
 EXPOSE 8000
 
-# Use tini as init + run via python to catch KeyboardInterrupt cleanly
+# Use tini as init for proper signal handling
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["python", "main.py"]

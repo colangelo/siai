@@ -16,16 +16,8 @@ def health():
 
 
 if __name__ == "__main__":
-    import asyncio
-    import sys
-
     import uvicorn
 
-    config = uvicorn.Config(app, host="0.0.0.0", port=8000)
-    server = uvicorn.Server(config)
-    # Disable uvicorn's signal handlers - let tini handle SIGINT/SIGTERM
-    server.install_signal_handlers = lambda: None
-    try:
-        asyncio.run(server.serve())
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        sys.exit(0)  # Clean exit
+    # Just run uvicorn - the traceback on Ctrl+C is cosmetic only
+    # The app shuts down correctly, uvicorn just logs errors during cleanup
+    uvicorn.run(app, host="0.0.0.0", port=8000)
