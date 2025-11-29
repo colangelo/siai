@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import json
 import os
 import sys
 import tomllib
@@ -28,143 +29,36 @@ import httpx
 
 # Default paths
 DEFAULT_CONFIG = Path("config/setup.toml")
+DEMO_REPO_DIR = Path("demo-repo")
 
-# Demo application templates
-DEMO_FILES = {
-    "main.py": '''\
-from fastapi import FastAPI
-
-app = FastAPI(title="Demo App", description="Demo application for Woodpecker CI")
-
-
-@app.get("/")
-def root():
-    """Root endpoint returning a welcome message."""
-    return {"message": "Hello from Woodpecker CI!"}
-
-
-@app.get("/health")
-def health():
-    """Health check endpoint."""
-    return {"status": "ok"}
-''',
-    "requirements.txt": """\
-fastapi>=0.109.0
-uvicorn>=0.27.0
-""",
-    "Dockerfile": """\
-FROM python:3.12-slim AS builder
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-FROM python:3.12-slim
-WORKDIR /app
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY main.py .
-EXPOSE 8000
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0"]
-""",
-    ".woodpecker.yaml": """\
-steps:
-  - name: lint
-    image: python:3.12-slim
-    commands:
-      - pip install ruff
-      - ruff check .
-
-  - name: build
-    image: docker
-    commands:
-      - docker build -t demo-app:${CI_COMMIT_SHA:0:8} .
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-
-  - name: test-container
-    image: docker
-    commands:
-      - docker run --rm -d --name demo-test -p 8080:8000 demo-app:${CI_COMMIT_SHA:0:8}
-      - sleep 3
-      - wget -qO- http://localhost:8080/health | grep -q ok
-      - docker stop demo-test
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-""",
-    "README.md": """\
-# Demo App
-
-A minimal Python FastAPI application demonstrating CI/CD with Woodpecker.
-
-## Local Development
-
-```bash
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-## Endpoints
-
-- `GET /` - Welcome message
-- `GET /health` - Health check
-
-## CI Pipeline
-
-The `.woodpecker.yaml` defines three stages:
-
-1. **lint** - Run ruff linter
-2. **build** - Build Docker image
-3. **test-container** - Run container and verify health endpoint
-
-## Docker
-
-```bash
-docker build -t demo-app .
-docker run -p 8000:8000 demo-app
-```
-
-Then visit http://localhost:8000
-""",
-}
-
-# Sample issues to create
-SAMPLE_ISSUES = [
-    {
-        "title": "Add unit tests",
-        "body": """## Description
-
-Add pytest unit tests for the main application endpoints.
-
-## Acceptance Criteria
-
-- [ ] Test `/` endpoint returns correct message
-- [ ] Test `/health` endpoint returns status ok
-- [ ] Tests run in CI pipeline
-
-## Implementation Notes
-
-- Use `pytest` and `httpx` for async testing
-- Add `test` step to `.woodpecker.yaml`
-""",
-    },
-    {
-        "title": "Configure container registry push",
-        "body": """## Description
-
-Configure the CI pipeline to push built images to a container registry.
-
-## Acceptance Criteria
-
-- [ ] Add registry credentials as Woodpecker secrets
-- [ ] Push image with commit SHA and `latest` tags
-- [ ] Only push on main branch
-
-## Implementation Notes
-
-- Add `REGISTRY_URL`, `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` secrets
-- Update `.woodpecker.yaml` build step with push commands
-""",
-    },
+# Files to upload from demo-repo folder (relative paths)
+DEMO_FILES = [
+    "main.py",
+    "pyproject.toml",
+    "Dockerfile",
+    ".woodpecker.yaml",
+    "README.md",
 ]
+
+
+def load_demo_files(demo_dir: Path) -> dict[str, str]:
+    """Load demo repository files from disk."""
+    files = {}
+    for filename in DEMO_FILES:
+        filepath = demo_dir / filename
+        if filepath.exists():
+            files[filename] = filepath.read_text()
+        else:
+            print(f"Warning: Demo file not found: {filepath}")
+    return files
+
+
+def load_issues(demo_dir: Path) -> list[dict[str, str]]:
+    """Load issues from issues.json in demo folder."""
+    issues_file = demo_dir / "issues.json"
+    if issues_file.exists():
+        return json.loads(issues_file.read_text())
+    return []
 
 
 @dataclass
@@ -396,6 +290,12 @@ def main() -> None:
         help=f"Path to TOML config file (default: {DEFAULT_CONFIG})",
     )
     parser.add_argument(
+        "--demo-dir",
+        type=Path,
+        default=DEMO_REPO_DIR,
+        help=f"Path to demo repository template folder (default: {DEMO_REPO_DIR})",
+    )
+    parser.add_argument(
         "--dry-run",
         "-n",
         action="store_true",
@@ -407,6 +307,17 @@ def main() -> None:
         help="Create sample issues in the demo repository",
     )
     args = parser.parse_args()
+
+    # Check demo folder exists
+    if not args.demo_dir.exists():
+        print(f"Error: Demo folder not found: {args.demo_dir}")
+        sys.exit(1)
+
+    # Load demo files from folder
+    demo_files = load_demo_files(args.demo_dir)
+    if not demo_files:
+        print("Error: No demo files found")
+        sys.exit(1)
 
     # Load configuration
     config = load_config(args.config)
@@ -477,7 +388,7 @@ def main() -> None:
 
     # Upload demo files
     print("\nUploading demo files...")
-    for filepath, content in DEMO_FILES.items():
+    for filepath, content in demo_files.items():
         create_or_update_file(
             client,
             owner,
@@ -492,8 +403,11 @@ def main() -> None:
     if args.create_issues or demo_config.get("create_issues", False):
         print("\nCreating sample issues...")
 
-        # Use custom issues from config if provided
-        issues = demo_config.get("issues", SAMPLE_ISSUES)
+        # Load issues from file or use config
+        issues = load_issues(args.demo_dir)
+        if not issues:
+            issues = demo_config.get("issues", [])
+
         for issue in issues:
             create_issue(
                 client,

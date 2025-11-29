@@ -1,0 +1,12 @@
+[project]
+name = "demo-app"
+version = "0.1.0"
+description = "Demo Python application for Woodpecker CI"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn>=0.27.0",
+]
+
+[project.scripts]
+demo-app = "main:app"

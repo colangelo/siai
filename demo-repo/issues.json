@@ -1,0 +1,10 @@
+[
+  {
+    "title": "Add unit tests",
+    "body": "## Description\n\nAdd pytest unit tests for the main application endpoints.\n\n## Acceptance Criteria\n\n- [ ] Test `/` endpoint returns correct message\n- [ ] Test `/health` endpoint returns status ok\n- [ ] Tests run in CI pipeline\n\n## Implementation Notes\n\n- Use `pytest` and `httpx` for async testing\n- Add `test` step to `.woodpecker.yaml`"
+  },
+  {
+    "title": "Configure container registry push",
+    "body": "## Description\n\nConfigure the CI pipeline to push built images to a container registry.\n\n## Acceptance Criteria\n\n- [ ] Add registry credentials as Woodpecker secrets\n- [ ] Push image with commit SHA and `latest` tags\n- [ ] Only push on main branch\n\n## Implementation Notes\n\n- Add `REGISTRY_URL`, `REGISTRY_USERNAME`, `REGISTRY_PASSWORD` secrets\n- Update `.woodpecker.yaml` build step with push commands"
+  }
+]

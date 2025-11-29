@@ -1,0 +1,22 @@
+steps:
+  - name: lint
+    image: ghcr.io/astral-sh/uv:python3.12-alpine
+    commands:
+      - uv tool run ruff check .
+
+  - name: build
+    image: docker
+    commands:
+      - docker build -t demo-app:${CI_COMMIT_SHA:0:8} .
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  - name: test-container
+    image: docker
+    commands:
+      - docker run --rm -d --name demo-test -p 8080:8000 demo-app:${CI_COMMIT_SHA:0:8}
+      - sleep 3
+      - wget -qO- http://localhost:8080/health | grep -q ok
+      - docker stop demo-test
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
