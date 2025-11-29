@@ -50,6 +50,7 @@ All services communicate on `devnet` Docker network. PostgreSQL creates `gitea` 
 ## Pipeline Template (.woodpecker.yml)
 
 Multi-stage pipeline for Python projects deploying to Kubernetes:
+
 - `lint_and_test`: Python 3.12 + uv + pytest
 - `fetch_secrets_from_vault`: optional Vault integration
 - `build_and_push_image`: Docker build/push
@@ -57,6 +58,7 @@ Multi-stage pipeline for Python projects deploying to Kubernetes:
 - `helm_deploy`: Kubernetes deployment on tags
 
 Expected repo layout for pipeline:
+
 - `app/` or `src/`: Python code with `pyproject.toml`
 - `infra/terraform/`: Terraform modules
 - `infra/helm/chart/`: Helm chart
@@ -64,6 +66,7 @@ Expected repo layout for pipeline:
 ## Woodpecker Secrets
 
 Configure in Woodpecker UI for pipeline:
+
 - `registry_url`, `registry_username`, `registry_password`
 - `vault_addr`, `vault_token` (if using Vault step)
 - `aws_access_key_id`, `aws_secret_access_key` (for Terraform)
