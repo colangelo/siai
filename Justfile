@@ -221,6 +221,41 @@ clean-all:
     @echo "This will delete all data (Gitea repos, Woodpecker DB)!"
     @read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] && docker compose down -v || echo "Aborted"
 
+# ☢️  Full reset: backups only configs (.env, config/setup.toml), then removes EVERYTHING (repos, users, CI history) for fresh start
+nuclear:
+    #!/usr/bin/env bash
+    set -e
+    echo "☢️  NUCLEAR RESET - This will:"
+    echo "   • Stop and remove all containers"
+    echo "   • Delete all volumes (repos, databases, CI history)"
+    echo "   • Backup and remove .env and config/setup.toml"
+    echo ""
+    read -p "Are you sure? [y/N] " confirm
+    if [ "$confirm" != "y" ]; then
+        echo "Aborted."
+        exit 0
+    fi
+    echo ""
+    echo "=== Backing up config files ==="
+    [ -f .env ] && cp .env ".env.backup.$(date +%Y%m%d-%H%M%S)" && echo "  .env → .env.backup.*"
+    [ -f config/setup.toml ] && cp config/setup.toml "config/setup.toml.backup.$(date +%Y%m%d-%H%M%S)" && echo "  config/setup.toml → config/setup.toml.backup.*"
+    echo ""
+    echo "=== Stopping containers and removing volumes ==="
+    docker compose down -v
+    echo ""
+    echo "=== Removing config files ==="
+    rm -f .env config/setup.toml
+    echo ""
+    echo "☢️  Nuclear reset complete!"
+    echo ""
+    echo "To start fresh, run:"
+    echo "  just init        # Create .env and config/setup.toml"
+    echo "  just secret      # Generate agent secret (add to .env)"
+    echo "  just up          # Start stack"
+    echo "  just bootstrap   # Initialize Gitea + OAuth"
+    echo ""
+    echo "See QUICKSTART.md for detailed instructions."
+
 # === URLs ===
 
 # Open Gitea in browser (macOS)
