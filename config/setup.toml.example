@@ -51,3 +51,20 @@ email = "bob@example.com"
 name = "Woodpecker CI"
 redirect_uri = "http://ci.localhost/authorize"
 confidential = true
+
+# Demo repository configuration (optional)
+# Used by gitea_demo.py script (just demo)
+[demo]
+enabled = true
+repo_name = "demo-app"
+repo_description = "Demo Python application for CI testing"
+create_issues = false  # Set to true to create sample issues
+
+# Custom issues (optional, defaults used if not specified)
+# [[demo.issues]]
+# title = "Add unit tests"
+# body = "Add pytest tests for the main application."
+#
+# [[demo.issues]]
+# title = "Configure container registry push"
+# body = "Set up secrets for pushing to container registry."

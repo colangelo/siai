@@ -158,6 +158,30 @@ bootstrap:
     echo ""
     just gitea-oauth
 
+# Create demo repository with Python app and CI pipeline
+demo:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && set -a && source .env && set +a
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_demo.py
+
+# Preview demo repository creation (dry-run)
+demo-dry-run:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && set -a && source .env && set +a
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_demo.py --dry-run
+
+# Create demo repository with sample issues
+demo-with-issues:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && set -a && source .env && set +a
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_demo.py --create-issues
+
 # === Stack Management ===
 
 # Start all services (unset env vars to ensure .env is used)

@@ -35,6 +35,8 @@ just up             # Start all services
 just bootstrap      # Initialize Gitea + create OAuth app
 just setup          # Provision users/orgs from config/setup.toml
 just setup-dry-run  # Preview setup changes
+just demo           # Create demo repository with CI pipeline
+just demo-dry-run   # Preview demo creation
 
 just down           # Stop all services
 just restart        # Restart after .env changes
@@ -57,7 +59,8 @@ just clean-all      # Also remove volumes (destructive)
 4. `just bootstrap` - initialize Gitea and create OAuth app automatically
 5. Add OAuth credentials to `.env`, run `just restart`
 6. `just setup` - provision users/orgs from config (optional)
-7. Visit `http://ci.localhost`, login via Gitea, activate repos
+7. `just demo` - create demo repository to test CI (optional)
+8. Visit `http://ci.localhost`, login via Gitea, activate repos
 
 ## Project Structure
 
@@ -66,7 +69,8 @@ siai-sidi/
 ├── scripts/                    # Python automation (PEP 723 + uv)
 │   ├── gitea_wizard.py         # Interactive setup wizard
 │   ├── gitea_setup.py          # Provision users, orgs, teams
-│   └── gitea_oauth.py          # Create OAuth2 applications
+│   ├── gitea_oauth.py          # Create OAuth2 applications
+│   └── gitea_demo.py           # Create demo repository
 ├── config/
 │   ├── init-db.sql             # PostgreSQL database init
 │   ├── setup.toml.example      # User/org configuration template

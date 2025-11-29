@@ -86,11 +86,30 @@ just nuclear     # Backup configs + full reset
 just init        # Start fresh
 ```
 
+## Demo Repository
+
+Create a demo repository to test the CI integration:
+
+```bash
+just demo            # Create demo-app repository
+just demo-dry-run    # Preview what would be created
+```
+
+The demo includes:
+- FastAPI Python application (`main.py`)
+- Docker multi-stage build (`Dockerfile`)
+- Woodpecker CI pipeline (`.woodpecker.yaml`)
+- Documentation (`README.md`)
+
+After running `just demo`:
+1. Go to Woodpecker (http://ci.localhost)
+2. Click "Add repository" → activate "demo-app"
+3. The pipeline will run automatically on the next push
+
 ## Next Steps
 
-1. Create a repository in Gitea
-2. Add a `.woodpecker.yml` pipeline file
-3. Activate the repo in Woodpecker
-4. Push and watch your pipeline run!
+1. Explore the demo repository in Gitea
+2. Activate it in Woodpecker and trigger a build
+3. Create your own repositories with `.woodpecker.yml` pipelines
 
 See [README.md](README.md) for architecture details and advanced configuration.

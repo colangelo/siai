@@ -7,20 +7,20 @@ Create automated demo repository with Python app, Dockerfile, and Woodpecker pip
 
 ### Phase 1: Core Script
 
-- [ ] **T1: Create `scripts/gitea_demo.py` skeleton**
+- [x] **T1: Create `scripts/gitea_demo.py` skeleton**
   - PEP 723 header with `httpx` dependency
   - Argument parser with `--dry-run`, `--config`, `--create-issues`
   - GiteaClient class (reuse pattern from gitea_setup.py)
   - Main function structure
   - **Validation**: Script runs with `--help`
 
-- [ ] **T2: Implement repository creation**
+- [x] **T2: Implement repository creation**
   - Check if repo exists (GET `/api/v1/repos/{owner}/{repo}`)
   - Create repo in org (POST `/api/v1/orgs/{org}/repos`) or user (POST `/api/v1/user/repos`)
   - Handle 409 Conflict (repo exists) gracefully
   - **Validation**: Running script creates empty repo in Gitea
 
-- [ ] **T3: Implement file upload**
+- [x] **T3: Implement file upload**
   - Base64 encode file content
   - POST to `/api/v1/repos/{owner}/{repo}/contents/{filepath}`
   - Batch multiple files in single commit using correct API
@@ -29,7 +29,7 @@ Create automated demo repository with Python app, Dockerfile, and Woodpecker pip
 
 ### Phase 2: Demo Application Files
 
-- [ ] **T4: Create demo application templates**
+- [x] **T4: Create demo application templates**
   - `main.py` - FastAPI hello-world with `/` and `/health` endpoints
   - `requirements.txt` - fastapi, uvicorn
   - `Dockerfile` - Multi-stage build for small image
@@ -38,14 +38,14 @@ Create automated demo repository with Python app, Dockerfile, and Woodpecker pip
   - Store as Python string templates or files in `config/demo/`
   - **Validation**: Templates render correctly with variable substitution
 
-- [ ] **T5: Implement template rendering**
+- [x] **T5: Implement template rendering**
   - Support variable substitution (`{repo_name}`, `{org_name}`)
   - Load templates from embedded strings or external files
   - **Validation**: Generated files have correct content
 
 ### Phase 3: Issue Creation
 
-- [ ] **T6: Implement issue creation**
+- [x] **T6: Implement issue creation**
   - POST to `/api/v1/repos/{owner}/{repo}/issues`
   - Check if issue with same title exists (skip if so)
   - Support labels if available
@@ -54,13 +54,13 @@ Create automated demo repository with Python app, Dockerfile, and Woodpecker pip
 
 ### Phase 4: Configuration Integration
 
-- [ ] **T7: Add demo configuration to setup.toml**
+- [x] **T7: Add demo configuration to setup.toml**
   - `[demo]` section with `enabled`, `repo_name`, `repo_description`
   - `[[demo.issues]]` array for custom issues
   - Update `setup.toml.example` with demo section
   - **Validation**: Config loads and parses correctly
 
-- [ ] **T8: Add Justfile task**
+- [x] **T8: Add Justfile task**
   - `just demo` - Run demo repository creation
   - `just demo-dry-run` - Preview what would be created
   - Add to `just --list` output
@@ -68,13 +68,13 @@ Create automated demo repository with Python app, Dockerfile, and Woodpecker pip
 
 ### Phase 5: Documentation & Testing
 
-- [ ] **T9: Update documentation**
+- [x] **T9: Update documentation**
   - Add demo section to README.md
   - Update QUICKSTART.md with demo step
   - Add to CLAUDE.md command reference
   - **Validation**: Documentation accurate and complete
 
-- [ ] **T10: End-to-end test**
+- [x] **T10: End-to-end test**
   - Run full flow: `nuclear` → `init` → `up` → `bootstrap` → `wizard` → `setup` → `demo`
   - Verify pipeline triggers in Woodpecker
   - Verify issues created in Gitea
@@ -82,7 +82,7 @@ Create automated demo repository with Python app, Dockerfile, and Woodpecker pip
 
 ### Phase 6: Release
 
-- [ ] **T11: Update CHANGELOG and ROADMAP**
+- [x] **T11: Update CHANGELOG and ROADMAP**
   - Add v0.3.4 section with demo feature
   - Mark `add-demo-repository` as complete in OpenSpec
   - **Validation**: Documentation ready for release

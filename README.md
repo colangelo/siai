@@ -23,7 +23,8 @@ siai-sidi/
 ├── scripts/                    # Python automation (PEP 723 + uv)
 │   ├── gitea_wizard.py         # Interactive setup wizard
 │   ├── gitea_setup.py          # Provision users, orgs, teams
-│   └── gitea_oauth.py          # Create OAuth2 applications
+│   ├── gitea_oauth.py          # Create OAuth2 applications
+│   └── gitea_demo.py           # Create demo repository
 ├── config/
 │   ├── init-db.sql             # PostgreSQL database init
 │   ├── setup.toml.example      # User/org configuration template
@@ -85,6 +86,8 @@ just setup-dry-run      # Preview changes without applying
 | `just bootstrap` | Initialize Gitea + create OAuth app |
 | `just setup` | Provision users/orgs from config/setup.toml |
 | `just setup-dry-run` | Preview setup changes |
+| `just demo` | Create demo repository with CI pipeline |
+| `just demo-dry-run` | Preview demo creation |
 | `just health` | Show service status and endpoints |
 | `just logs` | Follow all service logs |
 | `just clean-all` | Remove everything (destructive) |

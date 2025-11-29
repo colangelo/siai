@@ -204,6 +204,33 @@ Features:
 
 ---
 
+## v0.3.4 - Demo Repository ✅
+
+### Goals
+
+- Provide a working demo repository after bootstrap
+- Show users how Gitea and Woodpecker CI integrate
+- Give new users a clear example of CI/CD pipeline structure
+
+### Features
+
+- **`just demo`** - Create demo repository via Gitea API:
+  - FastAPI Python application (`main.py`)
+  - Multi-stage Dockerfile for optimized builds
+  - Woodpecker pipeline with lint, build, test steps
+  - README documentation
+- **`just demo-dry-run`** - Preview changes without applying
+- **`just demo-with-issues`** - Also create sample issues
+- **Optional issue creation** via `--create-issues` flag
+- **Configurable** via `[demo]` section in setup.toml
+- **Idempotent** - Safe to run multiple times
+
+### New Files
+
+- `scripts/gitea_demo.py` - Demo repository creation script (PEP 723)
+
+---
+
 ## v0.4.0 - Identity Provider Integration
 
 ### Goals

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2025-11-29
+
+### Added
+
+- **Demo repository creation** (`just demo`) - Automated demo repository with:
+  - `scripts/gitea_demo.py` - Python script for demo repository setup via Gitea API
+  - FastAPI Python application (`main.py`) with `/` and `/health` endpoints
+  - Multi-stage `Dockerfile` for optimized container builds
+  - Woodpecker CI pipeline (`.woodpecker.yaml`) with lint, build, and test steps
+  - `README.md` documentation for the demo app
+- **New Justfile tasks**:
+  - `just demo` - Create demo repository with CI pipeline
+  - `just demo-dry-run` - Preview demo creation
+  - `just demo-with-issues` - Create demo with sample issues
+- **Sample issues** - Optional issue creation with `--create-issues` flag:
+  - "Add unit tests" - Testing guidance
+  - "Configure container registry push" - Registry integration guidance
+- **Demo configuration** in `setup.toml`:
+  - `[demo]` section for repo customization
+  - `enabled`, `repo_name`, `repo_description` settings
+  - Custom issue support via `[[demo.issues]]`
+- Idempotent operation - safe to run multiple times
+
 ## [0.3.3] - 2025-11-29
 
 ### Added
@@ -131,6 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caddy alternative configuration (`Caddyfile.example`)
 - Basic documentation in `README.md`
 
+[0.3.4]: https://github.com/user/repo/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/user/repo/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/user/repo/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/user/repo/compare/v0.3.0...v0.3.1
