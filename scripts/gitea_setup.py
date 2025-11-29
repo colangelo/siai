@@ -75,13 +75,21 @@ def generate_password(length: int = 16) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
+def get_user_info(client: GiteaClient, username: str) -> dict[str, Any] | None:
+    """Get user info from Gitea API."""
+    resp = client.get(f"/users/{username}")
+    if resp.status_code == 200:
+        return resp.json()
+    return None
+
+
 def update_admin(
     client: GiteaClient,
     current_username: str,
     update_config: dict[str, Any],
     dry_run: bool = False,
 ) -> bool:
-    """Update admin user profile (rename, email, password)."""
+    """Update admin user profile (rename, email, password). Idempotent."""
     new_username = update_config.get("new_username")
     new_email = update_config.get("new_email")
     change_password = update_config.get("change_password", False)
@@ -89,46 +97,68 @@ def update_admin(
     if not any([new_username, new_email, change_password]):
         return True  # Nothing to update
 
+    # Check if admin was already renamed (idempotency)
+    actual_username = current_username
+    if new_username and new_username != current_username:
+        # Check if new_username already exists (already renamed)
+        if get_user_info(client, new_username):
+            print(f"  Admin already renamed to '{new_username}', skipping rename")
+            actual_username = new_username
+            new_username = None  # Don't rename again
+        elif not get_user_info(client, current_username):
+            print(f"  Error: Admin user '{current_username}' not found")
+            return False
+
+    # Get current user info to check email
+    user_info = get_user_info(client, actual_username)
+    if not user_info:
+        print(f"  Error: Could not get info for user '{actual_username}'")
+        return False
+
     # Build update payload
     payload: dict[str, Any] = {}
 
-    if new_username and new_username != current_username:
+    if new_username and new_username != actual_username:
         payload["login_name"] = new_username
         payload["source_id"] = 0  # Local user
 
-    if new_email:
+    # Only update email if different from current
+    if new_email and new_email != user_info.get("email"):
         payload["email"] = new_email
+    elif new_email:
+        print(f"  Email already set to '{new_email}', skipping")
 
     if change_password:
         new_password = os.environ.get("NEW_ADMIN_PASSWORD")
         if not new_password:
-            print("  Error: NEW_ADMIN_PASSWORD env var required for password change")
-            return False
-        payload["password"] = new_password
+            print("  Skipping password change: NEW_ADMIN_PASSWORD env var not set")
+        else:
+            payload["password"] = new_password
 
     if not payload:
+        print("  No admin changes needed")
         return True
 
     if dry_run:
         changes = []
-        if new_username and new_username != current_username:
-            changes.append(f"rename to '{new_username}'")
-        if new_email:
-            changes.append(f"email to '{new_email}'")
-        if change_password:
+        if payload.get("login_name"):
+            changes.append(f"rename to '{payload['login_name']}'")
+        if payload.get("email"):
+            changes.append(f"email to '{payload['email']}'")
+        if payload.get("password"):
             changes.append("change password")
         print(f"  [DRY-RUN] Would update admin: {', '.join(changes)}")
         return True
 
-    resp = client.patch(f"/admin/users/{current_username}", payload)
+    resp = client.patch(f"/admin/users/{actual_username}", payload)
 
     if resp.status_code in (200, 204):
         print(f"  Updated admin profile")
-        if new_username and new_username != current_username:
-            print(f"    Renamed to '{new_username}'")
-        if new_email:
-            print(f"    Email changed to '{new_email}'")
-        if change_password:
+        if payload.get("login_name"):
+            print(f"    Renamed to '{payload['login_name']}'")
+        if payload.get("email"):
+            print(f"    Email changed to '{payload['email']}'")
+        if payload.get("password"):
             print(f"    Password changed")
         return True
     else:
