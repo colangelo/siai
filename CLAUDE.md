@@ -30,6 +30,7 @@ Local OSS CI/CD stack: **Gitea + Woodpecker CI + Traefik** (Caddy alternative av
 ```bash
 just init           # Bootstrap .env and config/setup.toml from examples
 just secret         # Generate WOODPECKER_AGENT_SECRET
+just wizard         # Interactive setup wizard (creates config/setup.toml)
 just up             # Start all services
 just bootstrap      # Initialize Gitea + create OAuth app
 just setup          # Provision users/orgs from config/setup.toml
@@ -51,7 +52,7 @@ just clean-all      # Also remove volumes (destructive)
 ## Setup Flow
 
 1. `just init` then `just secret` - create .env with generated agent secret
-2. Edit `config/setup.toml` to define users, orgs, teams (optional)
+2. `just wizard` or edit `config/setup.toml` to define users, orgs, teams (optional)
 3. `just up` - start stack
 4. `just bootstrap` - initialize Gitea and create OAuth app automatically
 5. Add OAuth credentials to `.env`, run `just restart`
@@ -63,6 +64,7 @@ just clean-all      # Also remove volumes (destructive)
 ```
 siai-sidi/
 ├── scripts/                    # Python automation (PEP 723 + uv)
+│   ├── gitea_wizard.py         # Interactive setup wizard
 │   ├── gitea_setup.py          # Provision users, orgs, teams
 │   └── gitea_oauth.py          # Create OAuth2 applications
 ├── config/

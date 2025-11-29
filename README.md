@@ -21,6 +21,7 @@ Then visit:
 ```
 siai-sidi/
 ├── scripts/                    # Python automation (PEP 723 + uv)
+│   ├── gitea_wizard.py         # Interactive setup wizard
 │   ├── gitea_setup.py          # Provision users, orgs, teams
 │   └── gitea_oauth.py          # Create OAuth2 applications
 ├── config/
@@ -32,9 +33,24 @@ siai-sidi/
 └── .env.example                # Environment template
 ```
 
+## Interactive Setup Wizard
+
+Use the interactive wizard to create your configuration:
+
+```bash
+just wizard             # Launch interactive setup wizard
+```
+
+The wizard guides you through:
+- Gitea URL configuration
+- Admin credentials
+- Organization and team setup
+- User creation with team assignment
+- OAuth app configuration (Woodpecker)
+
 ## Declarative Setup (TOML Config)
 
-Define users, organizations, and teams in `config/setup.toml`:
+Or manually define users, organizations, and teams in `config/setup.toml`:
 
 ```toml
 [organization]
@@ -62,6 +78,7 @@ just setup-dry-run      # Preview changes without applying
 | Command | Description |
 |---------|-------------|
 | `just init` | Initialize .env and config files |
+| `just wizard` | Interactive setup wizard |
 | `just up` | Start all services |
 | `just down` | Stop all services |
 | `just restart` | Restart after .env changes |

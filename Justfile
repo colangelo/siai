@@ -36,6 +36,10 @@ secret:
     @echo "Generated secret (add to .env as WOODPECKER_AGENT_SECRET):"
     @openssl rand -hex 32
 
+# Interactive wizard to create config/setup.toml
+wizard:
+    uv run scripts/gitea_wizard.py
+
 # Show OAuth setup instructions (manual alternative)
 oauth-help:
     @echo "OAuth Setup for Woodpecker (manual method):"
