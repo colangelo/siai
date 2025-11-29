@@ -123,6 +123,34 @@ Features:
 
 ---
 
+## v0.3.1 - Interactive Setup Wizard
+
+### Goals
+
+- Add interactive terminal wizard for creating `config/setup.toml`
+- Beautiful Rich-based UI with sensible defaults
+- Lower barrier to entry for new users
+
+### Features
+
+- **Welcome screen** with project description
+- **Guided prompts** for each configuration section:
+  - Gitea URL (default: `http://gitea.localhost`)
+  - Admin credentials (username, email)
+  - Organization setup (optional): name, description, visibility
+  - Team creation loop: name, permission level
+  - User creation loop: username, email, team assignment
+  - OAuth app configuration (Woodpecker defaults)
+- **Summary table** before writing configuration
+- **Overwrite protection** for existing `setup.toml`
+
+### New Files
+
+- `scripts/gitea_wizard.py` - Interactive wizard using Rich + tomli-w
+- `just wizard` - Run the setup wizard
+
+---
+
 ## v0.4.0 - Identity Provider Integration
 
 ### Goals
