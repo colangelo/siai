@@ -88,39 +88,64 @@ def update_admin(
     current_username: str,
     update_config: dict[str, Any],
     dry_run: bool = False,
-) -> bool:
-    """Update admin user profile (rename, email, password). Idempotent."""
+) -> tuple[bool, str]:
+    """Update admin user profile (rename, email, password). Idempotent.
+
+    Returns (success, actual_username) - username may change if renamed.
+    """
     new_username = update_config.get("new_username")
     new_email = update_config.get("new_email")
     change_password = update_config.get("change_password", False)
 
     if not any([new_username, new_email, change_password]):
-        return True  # Nothing to update
+        return True, current_username  # Nothing to update
 
     # Check if admin was already renamed (idempotency)
     actual_username = current_username
+    should_rename = False
     if new_username and new_username != current_username:
         # Check if new_username already exists (already renamed)
         if get_user_info(client, new_username):
             print(f"  Admin already renamed to '{new_username}', skipping rename")
             actual_username = new_username
-            new_username = None  # Don't rename again
         elif not get_user_info(client, current_username):
             print(f"  Error: Admin user '{current_username}' not found")
-            return False
+            return False, current_username
+        else:
+            should_rename = True
 
     # Get current user info to check email
     user_info = get_user_info(client, actual_username)
     if not user_info:
         print(f"  Error: Could not get info for user '{actual_username}'")
-        return False
+        return False, actual_username
 
-    # Build update payload
-    payload: dict[str, Any] = {}
+    # Step 1: Rename user if needed (requires separate API endpoint)
+    if should_rename:
+        if dry_run:
+            print(f"  [DRY-RUN] Would rename '{actual_username}' to '{new_username}'")
+            actual_username = new_username  # For dry-run, pretend it worked
+        else:
+            resp = client.post(f"/admin/users/{actual_username}/rename", {"new_username": new_username})
+            if resp.status_code in (200, 204):
+                print(f"  Renamed '{actual_username}' to '{new_username}'")
+                actual_username = new_username
+                # Update client to use new username for subsequent API calls
+                client.username = new_username
+            else:
+                print(f"  Failed to rename user: {resp.status_code}")
+                try:
+                    print(f"    {resp.json()}")
+                except Exception:
+                    pass
+                return False, actual_username
 
-    if new_username and new_username != actual_username:
-        payload["login_name"] = new_username
-        payload["source_id"] = 0  # Local user
+    # Step 2: Build payload for email/password changes
+    payload: dict[str, Any] = {
+        # login_name is required by Gitea PATCH API
+        "login_name": actual_username,
+        "source_id": 0,  # Local user
+    }
 
     # Only update email if different from current
     if new_email and new_email != user_info.get("email"):
@@ -129,45 +154,43 @@ def update_admin(
         print(f"  Email already set to '{new_email}', skipping")
 
     if change_password:
-        new_password = os.environ.get("NEW_ADMIN_PASSWORD")
+        new_password = os.environ.get("NEW_GITEA_ADMIN_PASSWORD")
         if not new_password:
-            print("  Skipping password change: NEW_ADMIN_PASSWORD env var not set")
+            print("  Skipping password change: NEW_GITEA_ADMIN_PASSWORD env var not set")
         else:
             payload["password"] = new_password
 
-    if not payload:
-        print("  No admin changes needed")
-        return True
+    # Check if there are any changes beyond the required fields
+    has_changes = any(k not in ("login_name", "source_id") for k in payload)
+    if not has_changes:
+        if not should_rename:
+            print("  No admin changes needed")
+        return True, actual_username
 
     if dry_run:
         changes = []
-        if payload.get("login_name"):
-            changes.append(f"rename to '{payload['login_name']}'")
         if payload.get("email"):
             changes.append(f"email to '{payload['email']}'")
         if payload.get("password"):
             changes.append("change password")
         print(f"  [DRY-RUN] Would update admin: {', '.join(changes)}")
-        return True
+        return True, actual_username
 
     resp = client.patch(f"/admin/users/{actual_username}", payload)
 
     if resp.status_code in (200, 204):
-        print(f"  Updated admin profile")
-        if payload.get("login_name"):
-            print(f"    Renamed to '{payload['login_name']}'")
         if payload.get("email"):
-            print(f"    Email changed to '{payload['email']}'")
+            print(f"  Email changed to '{payload['email']}'")
         if payload.get("password"):
-            print(f"    Password changed")
-        return True
+            print(f"  Password changed")
+        return True, actual_username
     else:
         print(f"  Failed to update admin: {resp.status_code}")
         try:
             print(f"    {resp.json()}")
         except Exception:
             pass
-        return False
+        return False, actual_username
 
 
 def user_exists(client: GiteaClient, username: str) -> bool:
@@ -425,12 +448,19 @@ def main() -> None:
     admin_update = config.get("admin_update")
     if admin_update:
         print("Updating admin profile...")
-        update_admin(
+        success, actual_username = update_admin(
             client,
             config["admin"]["username"],
             admin_update,
             dry_run=args.dry_run,
         )
+        # Update client credentials to use new username/password
+        if success:
+            client.username = actual_username
+            if admin_update.get("change_password"):
+                new_password = os.environ.get("NEW_GITEA_ADMIN_PASSWORD")
+                if new_password:
+                    client.password = new_password
         print()
 
     # Create users
