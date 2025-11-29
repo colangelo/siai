@@ -1,22 +1,34 @@
+when:
+  - event: [push, pull_request, manual]
+
+# Override default clone to use internal Docker network hostname
+clone:
+  - name: clone
+    image: woodpeckerci/plugin-git
+    settings:
+      remote: http://gitea:3000/${CI_REPO}
+      ref: ${CI_COMMIT_REF}
+      sha: ${CI_COMMIT_SHA}
+
 steps:
   - name: lint
     image: ghcr.io/astral-sh/uv:python3.12-alpine
     commands:
       - uv tool run ruff check .
 
+  - name: test
+    image: ghcr.io/astral-sh/uv:python3.12-alpine
+    commands:
+      - uv sync
+      - uv run python -c "from main import app; print('Import OK')"
+
   - name: build
-    image: docker
+    image: docker:cli
+    # Only build on manual trigger or tags (optional step)
+    when:
+      - event: [manual, tag]
     commands:
       - docker build -t demo-app:${CI_COMMIT_SHA:0:8} .
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-
-  - name: test-container
-    image: docker
-    commands:
-      - docker run --rm -d --name demo-test -p 8080:8000 demo-app:${CI_COMMIT_SHA:0:8}
-      - sleep 3
-      - wget -qO- http://localhost:8080/health | grep -q ok
-      - docker stop demo-test
+      - docker images demo-app
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

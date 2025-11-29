@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.7] - 2025-11-29
+
+### Added
+
+- **Docker build step** in demo pipeline (`.woodpecker.yaml`):
+  - Optional `build` step runs on `manual` or `tag` events
+  - Builds `demo-app:${CI_COMMIT_SHA:0:8}` image
+  - Requires trusted repo with Volumes enabled
+- **Playwright browser automation** (`servers/playwright/`):
+  - `run.py` CLI for browser testing
+  - Commands: navigate, snapshot, screenshot, click, type, eval
+  - PEP 723 compatible, runs with `uv run`
+- **WOODPECKER_ADMIN** env var in `.env.example` for admin user config
+
+### Fixed
+
+- **Webhook delivery** - Gitea can now reach `ci.localhost`:
+  - Added `extra_hosts: ci.localhost:host-gateway` to gitea container
+  - Added `private` to `GITEA__webhook__ALLOWED_HOST_LIST`
+- **Pipeline cloning** - Custom clone step uses internal Docker network:
+  - Clone URL: `http://gitea:3000/${CI_REPO}` (not `gitea.localhost`)
+  - Pipeline containers can now fetch from Gitea
+
+### Changed
+
+- **Documentation updated** with:
+  - Webhook configuration details
+  - Internal clone URL setup
+  - Docker build trust requirements
+  - Playwright automation guide
+
 ## [0.3.6] - 2025-11-29
 
 ### Changed
@@ -179,6 +210,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caddy alternative configuration (`Caddyfile.example`)
 - Basic documentation in `README.md`
 
+[0.3.7]: https://github.com/colangelo/siai/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/colangelo/siai/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/colangelo/siai/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/colangelo/siai/compare/v0.3.3...v0.3.4

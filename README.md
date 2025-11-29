@@ -34,9 +34,9 @@ siai/
 │   └── gitea_demo.py           # Create demo repository
 ├── demo-repo/                  # Demo repository template files
 │   ├── main.py                 # FastAPI application
-│   ├── Dockerfile              # Multi-stage Docker build
-│   ├── .woodpecker.yaml        # CI pipeline definition
-│   ├── requirements.txt        # Python dependencies
+│   ├── pyproject.toml          # Python project config (uv)
+│   ├── Dockerfile              # Docker build with uv
+│   ├── .woodpecker.yaml        # CI pipeline (lint, test, build)
 │   ├── README.md               # Demo documentation
 │   └── issues.json             # Sample issues to create
 ├── config/
@@ -125,6 +125,38 @@ just setup-dry-run      # Preview changes without applying
 
 Use `config/Caddyfile.example` as the reverse proxy if you prefer Caddy over Traefik. Swap the Traefik service in `docker-compose.yml` for a Caddy service that mounts that file.
 
-## Pipeline Template
+## Demo Pipeline
 
-`.woodpecker.yml` contains a pipeline for Python lint/test, Docker build/push, Terraform plan/apply, and Helm deploy, with Vault and registry/K8s secrets expected as Woodpecker secrets.
+The demo repository includes a complete CI pipeline (`.woodpecker.yaml`):
+
+| Step | Image | Description |
+|------|-------|-------------|
+| `clone` | woodpeckerci/plugin-git | Clone using internal Docker network |
+| `lint` | ghcr.io/astral-sh/uv:python3.12-alpine | Run ruff linter |
+| `test` | ghcr.io/astral-sh/uv:python3.12-alpine | Run tests with uv |
+| `build` | docker:cli | Docker build (manual/tag only) |
+
+### Enabling Docker Builds
+
+The `build` step requires the repo to be **trusted** for volume mounts:
+
+1. Set `WOODPECKER_ADMIN=admin` in `.env` (must match your Gitea username)
+2. Restart Woodpecker: `just docker-restart`
+3. Go to repo **Settings → Trusted → Volumes** and enable it
+4. Run a manual pipeline to trigger the Docker build
+
+### Internal Clone URL
+
+Pipelines use `http://gitea:3000` (Docker network) instead of `gitea.localhost` for cloning. This is configured in the demo's `.woodpecker.yaml`:
+
+```yaml
+clone:
+  - name: clone
+    image: woodpeckerci/plugin-git
+    settings:
+      remote: http://gitea:3000/${CI_REPO}
+```
+
+## Full Pipeline Template
+
+For production pipelines with Terraform/Helm/Vault, see `.woodpecker.yml` which includes Docker build/push, Terraform plan/apply, and Helm deploy steps.

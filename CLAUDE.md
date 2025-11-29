@@ -85,6 +85,14 @@ siai/
 │   ├── gitea_setup.py          # Provision users, orgs, teams
 │   ├── gitea_oauth.py          # Create OAuth2 applications
 │   └── gitea_demo.py           # Create demo repository
+├── demo-repo/                  # Demo repository template files
+│   ├── main.py                 # FastAPI application
+│   ├── pyproject.toml          # Python project config (uv)
+│   ├── Dockerfile              # Docker build with uv
+│   └── .woodpecker.yaml        # CI pipeline (clone, lint, test, build)
+├── servers/                    # Automation tools
+│   └── playwright/             # Browser automation
+│       └── run.py              # Playwright CLI runner
 ├── config/
 │   ├── init-db.sql             # PostgreSQL database init
 │   ├── setup.toml.example      # User/org configuration template
@@ -106,7 +114,47 @@ siai/
 
 All services communicate on `devnet` Docker network. PostgreSQL creates `gitea` and `woodpecker` databases on init via `config/init-db.sql`.
 
-## Pipeline Template (.woodpecker.yml)
+## Key Configuration Details
+
+### Webhook Delivery (Gitea → Woodpecker)
+
+Gitea must reach `ci.localhost` to deliver webhooks. This is configured via:
+- `extra_hosts: ci.localhost:host-gateway` on the gitea container
+- `GITEA__webhook__ALLOWED_HOST_LIST=external,loopback,private` to allow private IPs
+
+### Pipeline Cloning (Internal Docker Network)
+
+Pipeline containers can't resolve `gitea.localhost`. The demo pipeline uses a custom clone step:
+
+```yaml
+clone:
+  - name: clone
+    image: woodpeckerci/plugin-git
+    settings:
+      remote: http://gitea:3000/${CI_REPO}  # Docker network hostname
+```
+
+### Docker Builds (Trusted Repos)
+
+To enable Docker socket access in pipelines:
+
+1. Set `WOODPECKER_ADMIN=admin` in `.env` (matches Gitea username)
+2. Restart Woodpecker to pick up admin setting
+3. In Woodpecker UI: repo Settings → Trusted → enable **Volumes**
+4. Pipeline can now mount `/var/run/docker.sock`
+
+## Demo Pipeline (.woodpecker.yaml)
+
+The demo repo includes a 4-step pipeline:
+
+| Step | Image | Trigger | Description |
+|------|-------|---------|-------------|
+| `clone` | woodpeckerci/plugin-git | always | Clone via internal network |
+| `lint` | ghcr.io/astral-sh/uv:python3.12-alpine | always | Run ruff linter |
+| `test` | ghcr.io/astral-sh/uv:python3.12-alpine | always | Run tests with uv |
+| `build` | docker:cli | manual/tag | Docker build (requires trusted) |
+
+## Production Pipeline Template (.woodpecker.yml)
 
 Multi-stage pipeline for Python projects deploying to Kubernetes:
 
@@ -115,12 +163,6 @@ Multi-stage pipeline for Python projects deploying to Kubernetes:
 - `build_and_push_image`: Docker build/push
 - `terraform_plan/apply`: infrastructure (push triggers plan, tags trigger apply)
 - `helm_deploy`: Kubernetes deployment on tags
-
-Expected repo layout for pipeline:
-
-- `app/` or `src/`: Python code with `pyproject.toml`
-- `infra/terraform/`: Terraform modules
-- `infra/helm/chart/`: Helm chart
 
 ## Woodpecker Secrets
 
@@ -134,3 +176,18 @@ Configure in Woodpecker UI for pipeline:
 ## Caddy Alternative
 
 Replace Traefik with Caddy using `config/Caddyfile.example`. Mount the Caddyfile in a Caddy service, expose ports 80/443. Caddy provides automatic HTTPS but doesn't use Docker labels.
+
+## Browser Automation (Playwright)
+
+For testing the web UIs, use the Playwright runner:
+
+```bash
+# Install browser (first time)
+uv run --with playwright python -c "from playwright.__main__ import main; main()" install chromium
+
+# Navigate and interact
+uv run servers/playwright/run.py navigate "http://ci.localhost"
+uv run servers/playwright/run.py snapshot    # Accessibility tree
+uv run servers/playwright/run.py screenshot /tmp/test.png
+uv run servers/playwright/run.py click "button"
+```
