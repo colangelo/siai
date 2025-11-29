@@ -145,7 +145,7 @@ To enable Docker socket access in pipelines:
 
 ## Demo Pipeline (.woodpecker.yaml)
 
-The demo repo includes a 4-step pipeline:
+The demo repo includes a 5-step pipeline:
 
 | Step | Image | Trigger | Description |
 |------|-------|---------|-------------|
@@ -153,6 +153,27 @@ The demo repo includes a 4-step pipeline:
 | `lint` | ghcr.io/astral-sh/uv:python3.12-alpine | always | Run ruff linter |
 | `test` | ghcr.io/astral-sh/uv:python3.12-alpine | always | Run tests with uv |
 | `build` | docker:cli | manual/tag | Docker build (requires trusted) |
+| `push` | docker:cli | manual/tag | Push to Gitea registry |
+
+## Container Registry
+
+Images are pushed to Gitea's built-in registry at `127.0.0.1`:
+
+```bash
+# Pull and run
+docker pull 127.0.0.1/admin/demo-app:latest
+docker run --rm -p 8080:8000 127.0.0.1/admin/demo-app:latest
+```
+
+The pipeline uses `127.0.0.1` (not `gitea.localhost`) because it's in Docker's default insecure registries list, avoiding HTTPS requirements.
+
+## Platform Access Guide
+
+See `docs/PLATFORM-ACCESS.md` for detailed documentation on:
+- Gitea API access with token authentication
+- Browser automation via Playwright
+- Docker registry commands
+- Network architecture
 
 ## Production Pipeline Template (.woodpecker.yml)
 

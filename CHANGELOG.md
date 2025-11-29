@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.9] - 2025-11-29
+
+### Added
+
+- **Platform access documentation** (`docs/PLATFORM-ACCESS.md`):
+  - Gitea API access with token authentication
+  - Browser automation via Playwright for UI operations
+  - Docker commands for container registry
+  - Just commands for stack management
+  - Network architecture and service URLs
+  - Pipeline configuration examples
+
+### Changed
+
+- **Demo app simplified** - Removed complex signal handling workarounds:
+  - Ctrl+C traceback is a known uvicorn/starlette cosmetic issue
+  - App shuts down correctly, error logging is just noisy
+  - See: https://github.com/Kludex/uvicorn/discussions/2368
+
+### Documentation
+
+- **ROADMAP.md updated**:
+  - v0.4.0: Harbor Container Registry (new)
+  - v0.5.0: Authentication & Access Configuration (was v0.4.0)
+  - v0.5.1: Identity Provider Integration (was v0.4.1)
+  - v0.6.0: Production Hardening (was v0.5.0)
+
 ## [0.3.8] - 2025-11-29
 
 ### Added
@@ -229,6 +256,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caddy alternative configuration (`Caddyfile.example`)
 - Basic documentation in `README.md`
 
+[0.3.9]: https://github.com/colangelo/siai/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/colangelo/siai/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/colangelo/siai/compare/v0.3.6...v0.3.7
 [0.3.6]: https://github.com/colangelo/siai/compare/v0.3.5...v0.3.6

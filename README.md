@@ -135,6 +135,21 @@ The demo repository includes a complete CI pipeline (`.woodpecker.yaml`):
 | `lint` | ghcr.io/astral-sh/uv:python3.12-alpine | Run ruff linter |
 | `test` | ghcr.io/astral-sh/uv:python3.12-alpine | Run tests with uv |
 | `build` | docker:cli | Docker build (manual/tag only) |
+| `push` | docker:cli | Push to Gitea registry (manual/tag only) |
+
+## Container Registry
+
+Images are pushed to Gitea's built-in container registry:
+
+```bash
+# Pull an image built by the pipeline
+docker pull 127.0.0.1/admin/demo-app:latest
+
+# Run the demo app
+docker run --rm -p 8080:8000 127.0.0.1/admin/demo-app:latest
+```
+
+View pushed images at: http://gitea.localhost/admin/-/packages
 
 ### Enabling Docker Builds
 
