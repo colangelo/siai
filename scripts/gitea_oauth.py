@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -30,6 +31,36 @@ DEFAULT_CONFIG = Path("config/setup.toml")
 DEFAULT_NAME = "Woodpecker CI"
 DEFAULT_REDIRECT = "http://ci.localhost/authorize"
 ENV_FILE = Path(".env")
+
+
+def get_woodpecker_env(var_name: str) -> str | None:
+    """Get environment variable from running Woodpecker container."""
+    try:
+        result = subprocess.run(
+            ["docker", "exec", "wpk-server", "printenv", var_name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return None
+
+
+def restart_woodpecker() -> bool:
+    """Restart Woodpecker server and agent to pick up new OAuth credentials."""
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "up", "-d", "--force-recreate", "wpk-server", "wpk-agent"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
 
 
 def update_env_file(client_id: str, client_secret: str, prefix: str = "WOODPECKER_GITEA") -> bool:
@@ -273,6 +304,18 @@ def main() -> None:
                 client_secret = app_data.get("client_secret", "")
                 if update_env_file(client_id, client_secret):
                     print("✓ Updated .env with OAuth credentials")
+
+                    # Check if Woodpecker needs restart
+                    current_client = get_woodpecker_env("WOODPECKER_GITEA_CLIENT")
+                    if current_client and current_client != client_id:
+                        print("  Woodpecker has stale OAuth credentials, restarting...")
+                        if restart_woodpecker():
+                            print("✓ Woodpecker restarted with new credentials")
+                        else:
+                            print("⚠ Failed to restart Woodpecker, run: just restart")
+                    elif current_client == client_id:
+                        pass  # Already up to date
+                    # If current_client is None, Woodpecker might not be running
                 else:
                     print("⚠ Could not update .env (file not found)")
 
@@ -280,9 +323,8 @@ def main() -> None:
     if args.format == "human":
         print()
         print("Next steps:")
-        print("  1. just restart    # Apply OAuth config")
-        print("  2. just wizard     # Configure users/orgs (optional)")
-        print("  3. just setup      # Apply provisioning (optional)")
+        print("  1. just wizard     # Configure users/orgs (optional)")
+        print("  2. just setup      # Apply provisioning (optional)")
         print()
         print("Then visit:")
         print("  http://gitea.localhost   - Git server")
