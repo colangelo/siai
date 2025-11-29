@@ -282,7 +282,101 @@ Features:
 
 ---
 
-## v0.4.0 - Authentication & Access Configuration
+## v0.4.0 - Harbor Container Registry
+
+### Goals
+
+- Add Harbor as enterprise-grade container registry
+- Replace Gitea's built-in registry for production use
+- Integrate with CI pipeline for image push/pull
+- Vulnerability scanning and image signing
+
+### Why Harbor?
+
+| Feature | Gitea Registry | Harbor |
+|---------|---------------|--------|
+| **Vulnerability Scanning** | No | Yes (Trivy) |
+| **Image Signing** | No | Yes (Notary/Cosign) |
+| **Replication** | No | Yes (multi-registry) |
+| **RBAC** | Basic | Fine-grained |
+| **Garbage Collection** | Manual | Automated |
+| **UI** | Minimal | Full-featured |
+| **Helm Charts** | No | Yes |
+
+### Architecture
+
+```
+┌─────────────────┐     ┌──────────────┐     ┌─────────────────┐
+│  Traefik        │────▶│  Harbor      │     │  Woodpecker     │
+│  registry.local │     │  (port 8080) │◀───▶│  Agent          │
+└─────────────────┘     └──────────────┘     └─────────────────┘
+                              │
+                        ┌─────┴─────┐
+                        │  Redis    │
+                        │  (cache)  │
+                        └───────────┘
+```
+
+### Implementation Plan
+
+1. Add Harbor services to docker-compose.yml:
+   - `harbor-core` - Main API and UI
+   - `harbor-registry` - Docker registry backend
+   - `harbor-db` - PostgreSQL (or share existing)
+   - `harbor-redis` - Caching layer
+   - `harbor-jobservice` - Async job processing
+   - `harbor-trivy` - Vulnerability scanning (optional)
+
+2. Configure Traefik routing:
+   - `registry.localhost` → Harbor UI
+   - `/v2/*` → Harbor registry API
+
+3. Update pipeline to push to Harbor:
+   - Replace `127.0.0.1/admin/demo-app` with `registry.localhost/library/demo-app`
+   - Add Harbor robot account for CI
+
+4. Create setup automation:
+   - `scripts/harbor_setup.py` - Configure projects, users, robot accounts
+   - Integration with existing wizard
+
+### Configuration
+
+**`config/setup.toml` additions:**
+
+```toml
+[harbor]
+enabled = true
+url = "http://registry.localhost"
+admin_password_env = "HARBOR_ADMIN_PASSWORD"
+
+[[harbor.projects]]
+name = "library"
+public = true
+
+[[harbor.robot_accounts]]
+name = "ci-pusher"
+project = "library"
+permissions = ["push", "pull"]
+```
+
+### Justfile Updates
+
+```bash
+just harbor-up              # Start Harbor services
+just harbor-down            # Stop Harbor services
+just harbor-setup           # Configure Harbor (projects, accounts)
+just harbor-login           # Docker login to Harbor
+```
+
+### New Files
+
+- `docker-compose.harbor.yml` - Harbor service definitions
+- `scripts/harbor_setup.py` - Harbor automation (PEP 723)
+- `config/harbor/` - Harbor configuration templates
+
+---
+
+## v0.5.0 - Authentication & Access Configuration
 
 ### Goals
 
@@ -371,7 +465,7 @@ just auth-apply            # Apply auth configuration from config/auth.toml
 
 ---
 
-## v0.4.1 - Identity Provider Integration
+## v0.5.1 - Identity Provider Integration
 
 ### Goals
 
@@ -401,7 +495,7 @@ just auth-apply            # Apply auth configuration from config/auth.toml
 
 ---
 
-## v0.5.0 - Production Hardening
+## v0.6.0 - Production Hardening
 
 ### Goals
 
@@ -422,7 +516,6 @@ just auth-apply            # Apply auth configuration from config/auth.toml
 
 ### Potential Additions
 
-- **Container Registry**: Harbor or Gitea's built-in registry
 - **Artifact Storage**: MinIO for build artifacts and LFS
 - **Monitoring**: Prometheus + Grafana stack
 - **Log Aggregation**: Loki or similar
