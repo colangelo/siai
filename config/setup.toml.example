@@ -1,0 +1,53 @@
+# Gitea Setup Configuration
+# Copy to setup.toml and customize for your environment.
+# Run with: uv run scripts/gitea_setup.py
+# Preview with: uv run scripts/gitea_setup.py --dry-run
+
+[gitea]
+# Gitea server URL (must be reachable from where script runs)
+url = "http://gitea.localhost"
+
+[admin]
+# Admin credentials for API authentication
+# Password is read from environment variable GITEA_ADMIN_PASSWORD
+username = "admin"
+email = "admin@localhost"
+
+# Organization configuration (optional)
+# Comment out entire section if you don't need an organization
+[organization]
+name = "myorg"
+description = "Main development organization"
+visibility = "public"  # "public" or "private"
+
+# Teams within the organization
+# Each team has: name, permission (read/write/admin), members list
+[[organization.teams]]
+name = "developers"
+permission = "write"
+members = ["alice", "bob"]
+
+[[organization.teams]]
+name = "maintainers"
+permission = "admin"
+members = ["alice"]
+
+# Users to create (optional)
+# Passwords are read from environment: {USERNAME_UPPER}_PASSWORD
+# e.g., for "alice" -> ALICE_PASSWORD
+# If not set, a random password is generated and printed
+
+[[users]]
+username = "alice"
+email = "alice@example.com"
+
+[[users]]
+username = "bob"
+email = "bob@example.com"
+
+# OAuth2 applications (optional)
+# Used by gitea_oauth.py script
+[[oauth_apps]]
+name = "Woodpecker CI"
+redirect_uri = "http://ci.localhost/authorize"
+confidential = true

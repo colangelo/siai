@@ -28,7 +28,7 @@ services:
     volumes:
       # PostgreSQL 18+ stores data in version-specific subdirectory
       - postgres-data:/var/lib/postgresql
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - ./config/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s

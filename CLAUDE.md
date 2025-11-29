@@ -28,11 +28,13 @@ Local OSS CI/CD stack: **Gitea + Woodpecker CI + Traefik** (Caddy alternative av
 ## Common Commands
 
 ```bash
-just init           # Bootstrap .env from example, show setup steps
+just init           # Bootstrap .env and config/setup.toml from examples
 just secret         # Generate WOODPECKER_AGENT_SECRET
-just oauth-help     # Show OAuth configuration instructions
-
 just up             # Start all services
+just bootstrap      # Initialize Gitea + create OAuth app
+just setup          # Provision users/orgs from config/setup.toml
+just setup-dry-run  # Preview setup changes
+
 just down           # Stop all services
 just restart        # Restart after .env changes
 just status         # Show service status
@@ -49,10 +51,28 @@ just clean-all      # Also remove volumes (destructive)
 ## Setup Flow
 
 1. `just init` then `just secret` - create .env with generated agent secret
-2. `just up` - start stack, visit `http://gitea.localhost` for first-time setup
-3. `just oauth-help` - follow instructions to create Gitea OAuth app
-4. Add OAuth credentials to `.env`, run `just restart`
-5. Visit `http://ci.localhost`, login via Gitea, activate repos
+2. Edit `config/setup.toml` to define users, orgs, teams (optional)
+3. `just up` - start stack
+4. `just bootstrap` - initialize Gitea and create OAuth app automatically
+5. Add OAuth credentials to `.env`, run `just restart`
+6. `just setup` - provision users/orgs from config (optional)
+7. Visit `http://ci.localhost`, login via Gitea, activate repos
+
+## Project Structure
+
+```
+siai-sidi/
+├── scripts/                    # Python automation (PEP 723 + uv)
+│   ├── gitea_setup.py          # Provision users, orgs, teams
+│   └── gitea_oauth.py          # Create OAuth2 applications
+├── config/
+│   ├── init-db.sql             # PostgreSQL database init
+│   ├── setup.toml.example      # User/org configuration template
+│   └── Caddyfile.example       # Alternative reverse proxy config
+├── docker-compose.yml
+├── Justfile
+└── .env.example
+```
 
 ## Architecture
 
@@ -64,7 +84,7 @@ just clean-all      # Also remove volumes (destructive)
 | wpk-server    | woodpecker-server:v3       | CI coordinator (HTTP 8000, gRPC 9000)            |
 | wpk-agent     | woodpecker-agent:v3        | Job runner using host Docker socket              |
 
-All services communicate on `devnet` Docker network. PostgreSQL creates `gitea` and `woodpecker` databases on init via `init-db.sql`.
+All services communicate on `devnet` Docker network. PostgreSQL creates `gitea` and `woodpecker` databases on init via `config/init-db.sql`.
 
 ## Pipeline Template (.woodpecker.yml)
 
@@ -93,4 +113,4 @@ Configure in Woodpecker UI for pipeline:
 
 ## Caddy Alternative
 
-Replace Traefik with Caddy using `Caddyfile.example`. Mount the Caddyfile in a Caddy service, expose ports 80/443. Caddy provides automatic HTTPS but doesn't use Docker labels.
+Replace Traefik with Caddy using `config/Caddyfile.example`. Mount the Caddyfile in a Caddy service, expose ports 80/443. Caddy provides automatic HTTPS but doesn't use Docker labels.

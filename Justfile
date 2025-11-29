@@ -8,7 +8,7 @@ default:
 
 # === Bootstrap ===
 
-# Initialize .env from example (won't overwrite existing)
+# Initialize .env and config from examples (won't overwrite existing)
 init:
     #!/usr/bin/env bash
     if [ -f .env ]; then
@@ -17,22 +17,28 @@ init:
         cp .env.example .env
         echo "Created .env from .env.example"
     fi
+    if [ -f config/setup.toml ]; then
+        echo "config/setup.toml already exists, skipping copy"
+    else
+        cp config/setup.toml.example config/setup.toml
+        echo "Created config/setup.toml from config/setup.toml.example"
+    fi
     echo ""
     echo "Next steps:"
     echo "  1. Run 'just secret' to generate WOODPECKER_AGENT_SECRET"
-    echo "  2. Run 'just up' to start the stack"
-    echo "  3. Run 'just gitea-init' to initialize Gitea and create admin"
-    echo "  4. Create OAuth app in Gitea (see 'just oauth-help')"
-    echo "  5. Add OAuth credentials to .env and run 'just restart'"
+    echo "  2. Edit .env with your settings"
+    echo "  3. Edit config/setup.toml for users/orgs (optional)"
+    echo "  4. Run 'just up' to start the stack"
+    echo "  5. Run 'just bootstrap' to initialize Gitea"
 
 # Generate a random secret for WOODPECKER_AGENT_SECRET
 secret:
     @echo "Generated secret (add to .env as WOODPECKER_AGENT_SECRET):"
     @openssl rand -hex 32
 
-# Show OAuth setup instructions
+# Show OAuth setup instructions (manual alternative)
 oauth-help:
-    @echo "OAuth Setup for Woodpecker:"
+    @echo "OAuth Setup for Woodpecker (manual method):"
     @echo ""
     @echo "1. Go to http://gitea.localhost"
     @echo "2. User Settings → Applications → OAuth2 Applications"
@@ -42,6 +48,8 @@ oauth-help:
     @echo "4. Copy Client ID → WOODPECKER_GITEA_CLIENT in .env"
     @echo "5. Copy Client Secret → WOODPECKER_GITEA_SECRET in .env"
     @echo "6. Run 'just restart'"
+    @echo ""
+    @echo "Or use: just gitea-oauth (requires Python + uv)"
 
 # Initialize Gitea database and create admin user (run once after first 'just up')
 gitea-init:
@@ -69,8 +77,17 @@ gitea-init:
     echo ""
     echo "Next: run 'just gitea-oauth' to create Woodpecker OAuth app"
 
-# Create OAuth2 app for Woodpecker in Gitea (run after gitea-init)
+# Create OAuth2 app for Woodpecker using Python script
 gitea-oauth:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && source .env
+    export GITEA_ADMIN="${GITEA_ADMIN:-admin}"
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_oauth.py --config config/setup.toml
+
+# Create OAuth2 app using bash (fallback, no Python required)
+gitea-oauth-bash:
     #!/usr/bin/env bash
     set -e
     [ -f .env ] && source .env
@@ -101,6 +118,22 @@ gitea-oauth:
     echo "  WOODPECKER_GITEA_SECRET=$CLIENT_SECRET"
     echo ""
     echo "Then run: just restart"
+
+# Provision users, orgs, and teams from config/setup.toml
+setup:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && source .env
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_setup.py
+
+# Preview setup changes without applying (dry-run)
+setup-dry-run:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && source .env
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_setup.py --dry-run
 
 # Full bootstrap: init + oauth + show next steps
 bootstrap:

@@ -17,6 +17,8 @@
 .env.*.local
 *.pem
 *.key
+config/setup.toml
+.gitea-token
 
 # Docker
 docker-compose.override.yml
