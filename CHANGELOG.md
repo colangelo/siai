@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-11-29
+
+### Added
+
+- **Harbor Container Registry** - Optional enterprise-grade registry:
+  - `docker-compose.harbor.yml` - Harbor services (core, portal, registry, jobservice, redis)
+  - `scripts/harbor_setup.py` - Automated project and robot account setup
+  - `config/harbor/` - Configuration templates for Harbor services
+  - `docs/HARBOR.md` - Comprehensive setup and usage guide
+  - Trivy vulnerability scanner support (optional, via `HARBOR_TRIVY_ENABLED`)
+- **Registry abstraction in pipelines**:
+  - Demo pipeline now supports both Gitea and Harbor backends
+  - Registry URL configurable via Woodpecker secrets
+  - Backward compatible - defaults to Gitea registry
+- **New Justfile commands**:
+  - `just harbor-up` - Start Harbor services
+  - `just harbor-down` - Stop Harbor services
+  - `just harbor-setup` - Configure projects and robot accounts
+  - `just harbor-login` - Docker login helper
+  - `just registry-status` - Show active registry configuration
+- **Environment variables** for Harbor:
+  - `REGISTRY_BACKEND` - Select gitea or harbor
+  - `HARBOR_ADMIN_PASSWORD` - Harbor admin credentials
+  - `HARBOR_TRIVY_ENABLED` - Enable vulnerability scanning
+  - `HARBOR_*_SECRET` - Internal service secrets
+
+### Changed
+
+- **Pipeline registry handling**:
+  - Build/push steps now use `REGISTRY_URL` from secrets
+  - Falls back to Gitea (`127.0.0.1`) if not configured
+  - Supports both `gitea_token` and `registry_username/registry_password`
+- **docker-up/restart/health** now include Harbor if `REGISTRY_BACKEND=harbor`
+- **init-db.sql** creates `harbor` database alongside gitea/woodpecker
+
+### Documentation
+
+- Updated README with Harbor quick start
+- Updated CLAUDE.md with Harbor architecture
+- Updated PLATFORM-ACCESS.md with Harbor API guide
+
 ## [0.3.9] - 2025-11-29
 
 ### Added
@@ -256,6 +297,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caddy alternative configuration (`Caddyfile.example`)
 - Basic documentation in `README.md`
 
+[0.4.0]: https://github.com/colangelo/siai/compare/v0.3.9...v0.4.0
 [0.3.9]: https://github.com/colangelo/siai/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/colangelo/siai/compare/v0.3.7...v0.3.8
 [0.3.7]: https://github.com/colangelo/siai/compare/v0.3.6...v0.3.7

@@ -68,3 +68,34 @@ create_issues = false  # Set to true to create sample issues
 # [[demo.issues]]
 # title = "Configure container registry push"
 # body = "Set up secrets for pushing to container registry."
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Container Registry Configuration (optional)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Registry backend selection
+# - gitea: Use Gitea's built-in registry (default, no extra services)
+# - harbor: Deploy Harbor for enterprise features (vulnerability scanning, RBAC)
+[registry]
+backend = "gitea"  # or "harbor"
+
+# Harbor-specific configuration (only used when backend = "harbor")
+[registry.harbor]
+url = "http://registry.localhost"
+
+# Projects to create in Harbor
+# Each project is a namespace for container images
+[[registry.harbor.projects]]
+name = "library"
+public = true  # Public projects allow anonymous pulls
+
+[[registry.harbor.projects]]
+name = "ci"
+public = false  # Private projects require authentication
+
+# Robot accounts for CI automation
+# These are service accounts for pushing images from pipelines
+[[registry.harbor.robot_accounts]]
+name = "ci"
+projects = ["library", "ci"]  # Projects this robot can access
+permissions = ["push", "pull"]  # Available: push, pull

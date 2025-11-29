@@ -210,14 +210,121 @@ oauth-help:
     @echo "6. Run 'just docker-restart'"
 
 # ══════════════════════════════════════════════════════════════════════════════
+# HARBOR - Optional Container Registry
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Start Harbor services (requires REGISTRY_BACKEND=harbor in .env)
+harbor-up:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && source .env
+    if [ "${REGISTRY_BACKEND:-gitea}" != "harbor" ]; then
+        echo "Warning: REGISTRY_BACKEND is not set to 'harbor' in .env"
+        echo "Set REGISTRY_BACKEND=harbor to enable Harbor."
+        exit 1
+    fi
+    unset WOODPECKER_GITEA_CLIENT WOODPECKER_GITEA_SECRET WOODPECKER_AGENT_SECRET 2>/dev/null || true
+
+    # Check if Trivy should be enabled
+    PROFILES=""
+    if [ "${HARBOR_TRIVY_ENABLED:-false}" = "true" ]; then
+        PROFILES="--profile trivy"
+        echo "Starting Harbor with Trivy vulnerability scanner..."
+    else
+        echo "Starting Harbor services..."
+    fi
+
+    docker compose -f docker-compose.yml -f docker-compose.harbor.yml $PROFILES up -d
+    echo ""
+    echo "Harbor UI: http://registry.localhost"
+    echo "Default login: admin / Harbor12345 (or HARBOR_ADMIN_PASSWORD from .env)"
+
+# Stop Harbor services
+harbor-down:
+    #!/usr/bin/env bash
+    echo "Stopping Harbor services..."
+    docker compose -f docker-compose.yml -f docker-compose.harbor.yml --profile trivy down
+    echo "Harbor services stopped. Data volumes preserved."
+
+# Configure Harbor (create projects and robot accounts)
+harbor-setup:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && set -a && source .env && set +a
+    export HARBOR_ADMIN_PASSWORD="${HARBOR_ADMIN_PASSWORD:-Harbor12345}"
+    uv run scripts/harbor_setup.py
+
+# Preview Harbor setup changes (dry-run)
+harbor-setup-dry-run:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && set -a && source .env && set +a
+    export HARBOR_ADMIN_PASSWORD="${HARBOR_ADMIN_PASSWORD:-Harbor12345}"
+    uv run scripts/harbor_setup.py --dry-run
+
+# Docker login to Harbor registry
+harbor-login:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && source .env
+    HARBOR_USER="${1:-admin}"
+    HARBOR_PASS="${HARBOR_ADMIN_PASSWORD:-Harbor12345}"
+    echo "Logging in to Harbor as $HARBOR_USER..."
+    echo "$HARBOR_PASS" | docker login registry.localhost --username "$HARBOR_USER" --password-stdin
+    echo "✓ Logged in to registry.localhost"
+
+# Show active registry configuration and status
+registry-status:
+    #!/usr/bin/env bash
+    [ -f .env ] && source .env
+    echo "=== Registry Configuration ==="
+    echo ""
+    BACKEND="${REGISTRY_BACKEND:-gitea}"
+    echo "Active backend: $BACKEND"
+    echo ""
+
+    if [ "$BACKEND" = "harbor" ]; then
+        echo "Registry URL:   http://registry.localhost"
+        echo "Push format:    registry.localhost/<project>/<image>:<tag>"
+        echo ""
+        echo "=== Harbor Service Status ==="
+        docker compose -f docker-compose.yml -f docker-compose.harbor.yml ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null | grep -E "^(NAME|harbor)" || echo "Harbor services not running"
+        echo ""
+        echo "Trivy enabled: ${HARBOR_TRIVY_ENABLED:-false}"
+        echo ""
+        # Check if Harbor API is responding
+        if curl -sf http://registry.localhost/api/v2.0/systeminfo > /dev/null 2>&1; then
+            echo "Harbor API: ✓ responding"
+            VERSION=$(curl -sf http://registry.localhost/api/v2.0/systeminfo | grep -o '"harbor_version":"[^"]*"' | cut -d'"' -f4)
+            [ -n "$VERSION" ] && echo "Harbor version: $VERSION"
+        else
+            echo "Harbor API: ✗ not responding"
+        fi
+    else
+        echo "Registry URL:   127.0.0.1 (via Traefik to Gitea)"
+        echo "Push format:    127.0.0.1/<owner>/<repo>:<tag>"
+        echo ""
+        echo "Note: Gitea registry requires no additional services."
+        echo "To enable Harbor, set REGISTRY_BACKEND=harbor in .env"
+    fi
+
+# ══════════════════════════════════════════════════════════════════════════════
 # DOCKER - Stack Management
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Start all services
+# Start all services (includes Harbor if REGISTRY_BACKEND=harbor)
 docker-up:
     #!/usr/bin/env bash
     unset WOODPECKER_GITEA_CLIENT WOODPECKER_GITEA_SECRET WOODPECKER_AGENT_SECRET 2>/dev/null || true
-    docker compose up -d
+    [ -f .env ] && source .env
+
+    if [ "${REGISTRY_BACKEND:-gitea}" = "harbor" ]; then
+        PROFILES=""
+        [ "${HARBOR_TRIVY_ENABLED:-false}" = "true" ] && PROFILES="--profile trivy"
+        docker compose -f docker-compose.yml -f docker-compose.harbor.yml $PROFILES up -d
+    else
+        docker compose up -d
+    fi
 
 # Stop all services
 docker-down:
@@ -227,7 +334,15 @@ docker-down:
 docker-restart:
     #!/usr/bin/env bash
     unset WOODPECKER_GITEA_CLIENT WOODPECKER_GITEA_SECRET WOODPECKER_AGENT_SECRET 2>/dev/null || true
-    docker compose up -d --force-recreate
+    [ -f .env ] && source .env
+
+    if [ "${REGISTRY_BACKEND:-gitea}" = "harbor" ]; then
+        PROFILES=""
+        [ "${HARBOR_TRIVY_ENABLED:-false}" = "true" ] && PROFILES="--profile trivy"
+        docker compose -f docker-compose.yml -f docker-compose.harbor.yml $PROFILES up -d --force-recreate
+    else
+        docker compose up -d --force-recreate
+    fi
 
 # Show service status
 docker-status:
@@ -267,12 +382,21 @@ docker-logs-traefik:
 
 # Check if services are healthy
 docker-health:
-    @echo "=== Service Status ==="
-    @docker compose ps --format "table {{{{.Name}}}}\t{{{{.Status}}}}\t{{{{.Ports}}}}"
-    @echo ""
-    @echo "=== Endpoints ==="
-    @echo "Gitea:      http://gitea.localhost"
-    @echo "Woodpecker: http://ci.localhost"
+    #!/usr/bin/env bash
+    [ -f .env ] && source .env
+    echo "=== Service Status ==="
+    if [ "${REGISTRY_BACKEND:-gitea}" = "harbor" ]; then
+        docker compose -f docker-compose.yml -f docker-compose.harbor.yml ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || docker compose ps
+    else
+        docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || docker compose ps
+    fi
+    echo ""
+    echo "=== Endpoints ==="
+    echo "Gitea:      http://gitea.localhost"
+    echo "Woodpecker: http://ci.localhost"
+    if [ "${REGISTRY_BACKEND:-gitea}" = "harbor" ]; then
+        echo "Harbor:     http://registry.localhost"
+    fi
 
 # Show Woodpecker server health endpoint
 docker-health-woodpecker:

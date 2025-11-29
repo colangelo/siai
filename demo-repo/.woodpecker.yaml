@@ -27,12 +27,19 @@ steps:
     # Only build on manual trigger or tags (optional step)
     when:
       - event: [manual, tag]
+    environment:
+      # Registry URL from secret (Harbor) or default to Gitea's built-in registry
+      # - Gitea: 127.0.0.1 (routed via Traefik to Gitea /v2/*)
+      # - Harbor: registry.localhost (routed via Traefik to Harbor)
+      REGISTRY_URL:
+        from_secret: registry_url
     commands:
-      # Tag for local registry (127.0.0.1 is in Docker's insecure registries)
-      # Traefik routes /v2/* to Gitea container registry
-      - docker build -t 127.0.0.1/admin/demo-app:${CI_COMMIT_SHA:0:8} .
-      - docker tag 127.0.0.1/admin/demo-app:${CI_COMMIT_SHA:0:8} 127.0.0.1/admin/demo-app:latest
-      - docker images 127.0.0.1/admin/demo-app
+      # Use registry URL from secret, default to Gitea (127.0.0.1)
+      - export REGISTRY="${REGISTRY_URL:-127.0.0.1}"
+      - echo "Building for registry: $REGISTRY"
+      - docker build -t $REGISTRY/admin/demo-app:${CI_COMMIT_SHA:0:8} .
+      - docker tag $REGISTRY/admin/demo-app:${CI_COMMIT_SHA:0:8} $REGISTRY/admin/demo-app:latest
+      - docker images $REGISTRY/admin/demo-app
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -41,12 +48,31 @@ steps:
     when:
       - event: [manual, tag]
     environment:
+      # Registry credentials - works for both Gitea and Harbor
+      # For Gitea: use gitea_token secret with admin username
+      # For Harbor: use registry_username/registry_password secrets
+      REGISTRY_URL:
+        from_secret: registry_url
+      REGISTRY_USERNAME:
+        from_secret: registry_username
+      REGISTRY_PASSWORD:
+        from_secret: registry_password
+      # Fallback for Gitea (legacy support)
       GITEA_TOKEN:
         from_secret: gitea_token
     commands:
-      # Push to Gitea registry via Traefik (127.0.0.1:80/v2/*)
-      - echo "$GITEA_TOKEN" | docker login 127.0.0.1 --username admin --password-stdin
-      - docker push 127.0.0.1/admin/demo-app:${CI_COMMIT_SHA:0:8}
-      - docker push 127.0.0.1/admin/demo-app:latest
+      - export REGISTRY="${REGISTRY_URL:-127.0.0.1}"
+      - echo "Pushing to registry: $REGISTRY"
+      # Login with registry credentials (Harbor) or Gitea token (fallback)
+      - |
+        if [ -n "$REGISTRY_USERNAME" ] && [ -n "$REGISTRY_PASSWORD" ]; then
+          echo "$REGISTRY_PASSWORD" | docker login $REGISTRY --username "$REGISTRY_USERNAME" --password-stdin
+        elif [ -n "$GITEA_TOKEN" ]; then
+          echo "$GITEA_TOKEN" | docker login $REGISTRY --username admin --password-stdin
+        else
+          echo "Warning: No registry credentials configured"
+        fi
+      - docker push $REGISTRY/admin/demo-app:${CI_COMMIT_SHA:0:8}
+      - docker push $REGISTRY/admin/demo-app:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

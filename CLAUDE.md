@@ -60,6 +60,13 @@ just docker-logs-agent      # Woodpecker agent logs
 just docker-clean           # Remove containers/networks
 just docker-clean-all       # Also remove volumes (destructive)
 just nuclear                # Full reset with config backup
+
+# === HARBOR (optional) ===
+just harbor-up              # Start Harbor services
+just harbor-down            # Stop Harbor services
+just harbor-setup           # Configure projects/robot accounts
+just harbor-login           # Docker login to Harbor
+just registry-status        # Show active registry configuration
 ```
 
 ## Setup Flow
@@ -84,20 +91,29 @@ siai/
 │   ├── gitea_wizard.py         # Interactive setup wizard
 │   ├── gitea_setup.py          # Provision users, orgs, teams
 │   ├── gitea_oauth.py          # Create OAuth2 applications
-│   └── gitea_demo.py           # Create demo repository
+│   ├── gitea_demo.py           # Create demo repository
+│   └── harbor_setup.py         # Harbor project/robot account setup
 ├── demo-repo/                  # Demo repository template files
 │   ├── main.py                 # FastAPI application
 │   ├── pyproject.toml          # Python project config (uv)
 │   ├── Dockerfile              # Docker build with uv
-│   └── .woodpecker.yaml        # CI pipeline (clone, lint, test, build)
+│   └── .woodpecker.yaml        # CI pipeline (registry-agnostic)
 ├── servers/                    # Automation tools
 │   └── playwright/             # Browser automation
 │       └── run.py              # Playwright CLI runner
 ├── config/
-│   ├── init-db.sql             # PostgreSQL database init
-│   ├── setup.toml.example      # User/org configuration template
+│   ├── init-db.sql             # PostgreSQL database init (gitea, woodpecker, harbor)
+│   ├── setup.toml.example      # User/org/registry configuration template
+│   ├── harbor/                 # Harbor configuration templates
+│   │   ├── app.conf            # Harbor core config
+│   │   ├── registry-config.yml # Registry config
+│   │   └── jobservice-config.yml # Job service config
 │   └── Caddyfile.example       # Alternative reverse proxy config
-├── docker-compose.yml
+├── docs/
+│   ├── PLATFORM-ACCESS.md      # API and automation guide
+│   └── HARBOR.md               # Harbor setup guide
+├── docker-compose.yml          # Core services (Gitea, Woodpecker, Traefik)
+├── docker-compose.harbor.yml   # Harbor services (optional)
 ├── Justfile
 └── .env.example
 ```
@@ -157,7 +173,14 @@ The demo repo includes a 5-step pipeline:
 
 ## Container Registry
 
-Images are pushed to Gitea's built-in registry at `127.0.0.1`:
+Two registry backends are supported:
+
+| Backend | URL | Use Case |
+|---------|-----|----------|
+| **Gitea** (default) | `127.0.0.1` | Simple, no extra services |
+| **Harbor** (optional) | `registry.localhost` | Enterprise features |
+
+### Gitea Registry (Default)
 
 ```bash
 # Pull and run
@@ -166,6 +189,31 @@ docker run --rm -p 8080:8000 127.0.0.1/admin/demo-app:latest
 ```
 
 The pipeline uses `127.0.0.1` (not `gitea.localhost`) because it's in Docker's default insecure registries list, avoiding HTTPS requirements.
+
+### Harbor Registry (Optional)
+
+Enable Harbor for vulnerability scanning, RBAC, and robot accounts:
+
+```bash
+# Enable in .env
+REGISTRY_BACKEND=harbor
+
+# Start Harbor
+just harbor-up
+
+# Configure projects/robot accounts
+just harbor-setup
+```
+
+Harbor architecture:
+- `harbor-core` - API and business logic
+- `harbor-portal` - Web UI at `http://registry.localhost`
+- `harbor-registry` - Docker registry storage
+- `harbor-jobservice` - Async job processing
+- `harbor-redis` - Caching
+- `harbor-trivy` - Vulnerability scanner (optional, `HARBOR_TRIVY_ENABLED=true`)
+
+See `docs/HARBOR.md` for detailed setup guide.
 
 ## Platform Access Guide
 

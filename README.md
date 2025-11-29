@@ -139,6 +139,15 @@ The demo repository includes a complete CI pipeline (`.woodpecker.yaml`):
 
 ## Container Registry
 
+Two registry backends are supported:
+
+| Backend | URL | Features |
+|---------|-----|----------|
+| **Gitea** (default) | `127.0.0.1` | Simple, no extra services |
+| **Harbor** (optional) | `registry.localhost` | Vulnerability scanning, RBAC, robot accounts |
+
+### Gitea Registry (Default)
+
 Images are pushed to Gitea's built-in container registry:
 
 ```bash
@@ -150,6 +159,26 @@ docker run --rm -p 8080:8000 127.0.0.1/admin/demo-app:latest
 ```
 
 View pushed images at: http://gitea.localhost/admin/-/packages
+
+### Harbor Registry (Optional)
+
+For enterprise features like vulnerability scanning:
+
+```bash
+# 1. Enable Harbor in .env
+sed -i 's/REGISTRY_BACKEND=gitea/REGISTRY_BACKEND=harbor/' .env
+
+# 2. Start Harbor services
+just harbor-up
+
+# 3. Configure projects and robot accounts
+just harbor-setup
+
+# 4. Access Harbor UI
+open http://registry.localhost
+```
+
+See [docs/HARBOR.md](docs/HARBOR.md) for detailed setup guide.
 
 ### Enabling Docker Builds
 

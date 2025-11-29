@@ -7,7 +7,7 @@ This document describes how AI agents can interact with the SiAI CI/CD platform 
 The platform provides:
 - **Gitea** - Git hosting at `http://gitea.localhost`
 - **Woodpecker CI** - CI/CD at `http://ci.localhost`
-- **Container Registry** - Docker images at `127.0.0.1/admin/<repo>:<tag>`
+- **Container Registry** - Gitea at `127.0.0.1` (default) or Harbor at `registry.localhost`
 
 ## Access Methods
 
@@ -114,7 +114,7 @@ uv run servers/playwright/run.py click "button:has-text('Save')"
 
 ### 3. Docker Commands (For Container Operations)
 
-**Pull and Run Images:**
+**Pull and Run Images (Gitea Registry - Default):**
 ```bash
 # Pull from Gitea registry
 docker pull 127.0.0.1/admin/demo-app:latest
@@ -125,6 +125,19 @@ docker run --rm -p 8080:8000 127.0.0.1/admin/demo-app:latest
 # Push to registry (requires login)
 echo "$GITEA_TOKEN" | docker login 127.0.0.1 --username admin --password-stdin
 docker push 127.0.0.1/admin/demo-app:latest
+```
+
+**Pull and Run Images (Harbor Registry - Optional):**
+```bash
+# Pull from Harbor registry
+docker pull registry.localhost/library/demo-app:latest
+
+# Run container
+docker run --rm -p 8080:8000 registry.localhost/library/demo-app:latest
+
+# Push to registry (requires login)
+docker login registry.localhost --username admin --password "$HARBOR_ADMIN_PASSWORD"
+docker push registry.localhost/library/demo-app:latest
 ```
 
 **Check Container Logs:**
@@ -152,7 +165,51 @@ just docker-logs-agent  # Woodpecker agent
 # Setup
 just quickstart         # Full automated setup
 just nuclear            # Reset everything (destructive)
+
+# Harbor (optional container registry)
+just harbor-up          # Start Harbor services
+just harbor-down        # Stop Harbor services
+just harbor-setup       # Configure projects/robot accounts
+just harbor-login       # Docker login to Harbor
+just registry-status    # Show active registry configuration
 ```
+
+### 5. Harbor API (For Harbor Operations)
+
+When Harbor is enabled (`REGISTRY_BACKEND=harbor`), access Harbor's API:
+
+**Check System Info:**
+```bash
+curl -sf http://registry.localhost/api/v2.0/systeminfo | jq
+```
+
+**List Projects:**
+```bash
+curl -sf http://registry.localhost/api/v2.0/projects \
+  -u "admin:$HARBOR_ADMIN_PASSWORD" | jq
+```
+
+**Create Project:**
+```bash
+curl -sf -X POST http://registry.localhost/api/v2.0/projects \
+  -u "admin:$HARBOR_ADMIN_PASSWORD" \
+  -H "Content-Type: application/json" \
+  -d '{"project_name": "myproject", "metadata": {"public": "true"}}'
+```
+
+**List Robot Accounts:**
+```bash
+curl -sf http://registry.localhost/api/v2.0/robots \
+  -u "admin:$HARBOR_ADMIN_PASSWORD" | jq
+```
+
+**Get Vulnerability Scan Results (requires Trivy):**
+```bash
+curl -sf "http://registry.localhost/api/v2.0/projects/library/repositories/demo-app/artifacts/latest?with_scan_overview=true" \
+  -u "admin:$HARBOR_ADMIN_PASSWORD" | jq '.scan_overview'
+```
+
+**API Documentation:** http://registry.localhost/devcenter-api-2.0
 
 ## Default Credentials
 
@@ -160,6 +217,7 @@ just nuclear            # Reset everything (destructive)
 |---------|----------|----------|-------|
 | Gitea | admin | admin123 | From `.env` |
 | Woodpecker | admin | (OAuth via Gitea) | Login through Gitea |
+| Harbor | admin | Harbor12345 | From `.env` (HARBOR_ADMIN_PASSWORD) |
 
 ## Service URLs
 
@@ -168,7 +226,10 @@ just nuclear            # Reset everything (destructive)
 | Gitea Web | http://gitea.localhost | Git hosting UI |
 | Gitea API | http://gitea.localhost/api/v1 | REST API |
 | Woodpecker | http://ci.localhost | CI/CD UI |
-| Container Registry | 127.0.0.1 (port 80) | Docker push/pull |
+| Gitea Registry | 127.0.0.1 (port 80) | Docker push/pull (default) |
+| Harbor UI | http://registry.localhost | Harbor web UI (optional) |
+| Harbor API | http://registry.localhost/api/v2.0 | Harbor REST API (optional) |
+| Harbor Registry | registry.localhost | Docker push/pull (optional) |
 
 ## Network Architecture
 

@@ -1,0 +1,39 @@
+# Harbor Registry configuration
+# This file is mounted into harbor-registry container
+
+version: 0.1
+log:
+  level: info
+  fields:
+    service: registry
+storage:
+  cache:
+    blobdescriptor: redis
+  filesystem:
+    rootdirectory: /storage
+  delete:
+    enabled: true
+  redirect:
+    disable: true
+redis:
+  addr: harbor-redis:6379
+  db: 2
+http:
+  addr: :5000
+  relativeurls: false
+  debug:
+    addr: :5001
+    prometheus:
+      enabled: true
+      path: /metrics
+auth:
+  token:
+    issuer: harbor-token-issuer
+    realm: http://registry.localhost/service/token
+    rootcertbundle: /etc/registry/root.crt
+    service: harbor-registry
+validation:
+  disabled: true
+compatibility:
+  schema1:
+    enabled: true
