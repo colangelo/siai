@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2025-11-29
+
+### Added
+
+- **Non-interactive wizard mode** - CLI arguments for scripted setup:
+  - `--non-interactive` / `-n` flag for non-interactive mode
+  - `--from-toml FILE` to load config from existing TOML backup
+  - `--new-admin-username`, `--new-admin-email`, `--new-admin-password`
+  - `--org-name`, `--org-description`, `--org-visibility`
+  - `--team NAME:PERM:MEMBERS`, `--user NAME:EMAIL`
+  - `--oauth-woodpecker`, `--oauth NAME:REDIRECT:TYPE`
+  - `--overwrite` / `-y` to replace existing config without prompting
+
+### Fixed
+
+- **Traefik routing conflicts** - Added `docker.constraints` to only route containers from this compose project (prevents conflicts with other Traefik instances on the same Docker host)
+- **OAuth credential detection** - `get_woodpecker_env()` now uses `docker inspect` instead of `printenv` (Woodpecker container is distroless with no shell)
+- **Auto-restart Woodpecker** - Correctly detects stale OAuth credentials during bootstrap and restarts automatically
+- **Shell env override** - Unset `WOODPECKER_GITEA_*` env vars before `docker compose` commands to ensure `.env` values are used
+
 ## [0.3.2] - 2025-11-29
 
 ### Added
@@ -111,6 +131,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caddy alternative configuration (`Caddyfile.example`)
 - Basic documentation in `README.md`
 
+[0.3.3]: https://github.com/user/repo/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/user/repo/compare/v0.3.1...v0.3.2
+[0.3.1]: https://github.com/user/repo/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/user/repo/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/user/repo/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/user/repo/releases/tag/v0.1.0

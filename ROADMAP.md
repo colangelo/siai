@@ -180,6 +180,30 @@ Features:
 
 ---
 
+## v0.3.3 - Non-Interactive Wizard & Traefik Isolation ✅
+
+### Goals
+
+- Enable scripted/automated setup via CLI arguments
+- Fix Traefik routing conflicts in multi-project environments
+
+### Features
+
+- **Non-interactive wizard mode** - Full CLI argument support:
+  - `--non-interactive` / `-n` for scripted setup
+  - `--from-toml FILE` to load from existing TOML backup
+  - All wizard options available as CLI flags
+  - `--overwrite` / `-y` for automated config replacement
+
+### Bug Fixes
+
+- **Traefik routing conflicts** - Added `docker.constraints` to isolate routing to this compose project only
+- **OAuth credential detection** - Use `docker inspect` instead of `printenv` (distroless containers)
+- **Auto-restart Woodpecker** - Correctly detects and handles stale OAuth credentials
+- **Shell env override** - Unset env vars before docker compose to ensure `.env` is used
+
+---
+
 ## v0.4.0 - Identity Provider Integration
 
 ### Goals
