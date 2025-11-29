@@ -31,10 +31,21 @@ init:
     echo "  4. Run 'just up' to start the stack"
     echo "  5. Run 'just bootstrap' to initialize Gitea"
 
-# Generate a random secret for WOODPECKER_AGENT_SECRET
+# Generate and set WOODPECKER_AGENT_SECRET in .env
 secret:
-    @echo "Generated secret (add to .env as WOODPECKER_AGENT_SECRET):"
-    @openssl rand -hex 32
+    #!/usr/bin/env bash
+    set -e
+    if [ ! -f .env ]; then
+        echo "Error: .env not found. Run 'just init' first."
+        exit 1
+    fi
+    SECRET=$(openssl rand -hex 32)
+    if grep -q "^WOODPECKER_AGENT_SECRET=" .env; then
+        sed -i.bak "s/^WOODPECKER_AGENT_SECRET=.*/WOODPECKER_AGENT_SECRET=$SECRET/" .env && rm -f .env.bak
+    else
+        echo "WOODPECKER_AGENT_SECRET=$SECRET" >> .env
+    fi
+    echo "✓ WOODPECKER_AGENT_SECRET set in .env"
 
 # Interactive wizard to create config/setup.toml
 wizard:
