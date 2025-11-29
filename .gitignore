@@ -1,5 +1,46 @@
 # macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
 
 # VSCode
 .vscode/
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# Environment / Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+
+# Backups
+*.bak
+*.backup
+*.sql.gz
+
+# Terraform (if used in repos)
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Python (if used in repos)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
