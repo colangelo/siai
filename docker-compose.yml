@@ -46,16 +46,24 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      # Server
       - GITEA__server__ROOT_URL=${GITEA_EXTERNAL_URL}
       - GITEA__server__DOMAIN=gitea.localhost
       - GITEA__server__SSH_DOMAIN=gitea.localhost
-      - GITEA__webhook__ALLOWED_HOST_LIST=external,loopback
-      # Database configuration
+      - GITEA__server__SSH_PORT=2222
+      - GITEA__server__HTTP_PORT=3000
+      # Database
       - GITEA__database__DB_TYPE=postgres
       - GITEA__database__HOST=postgres:5432
       - GITEA__database__NAME=gitea
       - GITEA__database__USER=${POSTGRES_USER:-postgres}
       - GITEA__database__PASSWD=${POSTGRES_PASSWORD:-postgres}
+      # Security - skip install wizard (use 'just gitea-init' after first start)
+      - GITEA__security__INSTALL_LOCK=true
+      # Webhook
+      - GITEA__webhook__ALLOWED_HOST_LIST=external,loopback
+      # Service
+      - GITEA__service__DISABLE_REGISTRATION=false
     volumes:
       - gitea-data:/data
     labels:
@@ -75,6 +83,9 @@ services:
         condition: service_healthy
       gitea:
         condition: service_started
+    extra_hosts:
+      # Allow wpk-server to reach gitea.localhost via Traefik
+      - "gitea.localhost:host-gateway"
     healthcheck:
       test: ["CMD", "/bin/woodpecker-server", "ping"]
       interval: 10s
