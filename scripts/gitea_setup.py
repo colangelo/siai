@@ -62,11 +62,82 @@ class GiteaClient:
             return httpx.Response(200)
         return httpx.put(self._api(path), auth=self._auth(), timeout=30)
 
+    def patch(self, path: str, json: dict[str, Any]) -> httpx.Response:
+        """PATCH request to Gitea API."""
+        if self.dry_run:
+            return httpx.Response(200)
+        return httpx.patch(self._api(path), auth=self._auth(), json=json, timeout=30)
+
 
 def generate_password(length: int = 16) -> str:
     """Generate a random password."""
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+def update_admin(
+    client: GiteaClient,
+    current_username: str,
+    update_config: dict[str, Any],
+    dry_run: bool = False,
+) -> bool:
+    """Update admin user profile (rename, email, password)."""
+    new_username = update_config.get("new_username")
+    new_email = update_config.get("new_email")
+    change_password = update_config.get("change_password", False)
+
+    if not any([new_username, new_email, change_password]):
+        return True  # Nothing to update
+
+    # Build update payload
+    payload: dict[str, Any] = {}
+
+    if new_username and new_username != current_username:
+        payload["login_name"] = new_username
+        payload["source_id"] = 0  # Local user
+
+    if new_email:
+        payload["email"] = new_email
+
+    if change_password:
+        new_password = os.environ.get("NEW_ADMIN_PASSWORD")
+        if not new_password:
+            print("  Error: NEW_ADMIN_PASSWORD env var required for password change")
+            return False
+        payload["password"] = new_password
+
+    if not payload:
+        return True
+
+    if dry_run:
+        changes = []
+        if new_username and new_username != current_username:
+            changes.append(f"rename to '{new_username}'")
+        if new_email:
+            changes.append(f"email to '{new_email}'")
+        if change_password:
+            changes.append("change password")
+        print(f"  [DRY-RUN] Would update admin: {', '.join(changes)}")
+        return True
+
+    resp = client.patch(f"/admin/users/{current_username}", payload)
+
+    if resp.status_code in (200, 204):
+        print(f"  Updated admin profile")
+        if new_username and new_username != current_username:
+            print(f"    Renamed to '{new_username}'")
+        if new_email:
+            print(f"    Email changed to '{new_email}'")
+        if change_password:
+            print(f"    Password changed")
+        return True
+    else:
+        print(f"  Failed to update admin: {resp.status_code}")
+        try:
+            print(f"    {resp.json()}")
+        except Exception:
+            pass
+        return False
 
 
 def user_exists(client: GiteaClient, username: str) -> bool:
@@ -319,6 +390,18 @@ def main() -> None:
     except httpx.RequestError as e:
         print(f"Error: Could not connect to Gitea: {e}")
         sys.exit(1)
+
+    # Update admin profile if requested
+    admin_update = config.get("admin_update")
+    if admin_update:
+        print("Updating admin profile...")
+        update_admin(
+            client,
+            config["admin"]["username"],
+            admin_update,
+            dry_run=args.dry_run,
+        )
+        print()
 
     # Create users
     users = config.get("users", [])

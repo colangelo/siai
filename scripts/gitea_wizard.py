@@ -13,6 +13,7 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,29 @@ from rich.table import Table
 console = Console()
 
 CONFIG_PATH = Path("config/setup.toml")
+ENV_PATH = Path(".env")
+
+
+def load_env_defaults() -> dict[str, str]:
+    """Load defaults from .env file if it exists."""
+    defaults = {
+        "GITEA_ADMIN": "admin",
+        "GITEA_ADMIN_EMAIL": "admin@localhost",
+        "GITEA_EXTERNAL_URL": "http://gitea.localhost",
+    }
+
+    if ENV_PATH.exists():
+        with open(ENV_PATH) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, _, value = line.partition("=")
+                    key = key.strip()
+                    value = value.strip()
+                    if key in defaults:
+                        defaults[key] = value
+
+    return defaults
 
 
 def welcome() -> None:
@@ -44,36 +68,84 @@ def welcome() -> None:
     console.print()
 
 
-def prompt_gitea_config() -> dict[str, str]:
+def prompt_gitea_config(env_defaults: dict[str, str]) -> dict[str, str]:
     """Prompt for Gitea server configuration."""
     console.print("[bold]1. Gitea Server Configuration[/bold]", style="cyan")
     console.print()
 
     url = Prompt.ask(
         "  Gitea URL",
-        default="http://gitea.localhost",
+        default=env_defaults.get("GITEA_EXTERNAL_URL", "http://gitea.localhost"),
     )
 
     return {"url": url}
 
 
-def prompt_admin_config() -> dict[str, str]:
-    """Prompt for admin credentials."""
+def prompt_current_admin(env_defaults: dict[str, str]) -> dict[str, str]:
+    """Prompt for current admin credentials (for API authentication)."""
     console.print()
-    console.print("[bold]2. Admin Credentials[/bold]", style="cyan")
-    console.print("  [dim]Used for API authentication. Password is read from GITEA_ADMIN_PASSWORD env var.[/dim]")
+    console.print("[bold]2. Current Admin (for API authentication)[/bold]", style="cyan")
+    console.print("  [dim]These credentials are used to connect to Gitea API.[/dim]")
+    console.print("  [dim]Values loaded from .env file.[/dim]")
     console.print()
 
-    username = Prompt.ask("  Admin username", default="admin")
-    email = Prompt.ask("  Admin email", default="admin@localhost")
+    username = Prompt.ask(
+        "  Current admin username",
+        default=env_defaults.get("GITEA_ADMIN", "admin"),
+    )
+    email = Prompt.ask(
+        "  Current admin email",
+        default=env_defaults.get("GITEA_ADMIN_EMAIL", "admin@localhost"),
+    )
 
     return {"username": username, "email": email}
 
 
-def prompt_organization() -> dict[str, Any] | None:
+def prompt_admin_update(current_admin: dict[str, str]) -> dict[str, Any] | None:
+    """Prompt for admin profile update (rename, change email/password)."""
+    console.print()
+    console.print("[bold]3. Update Admin Profile (optional)[/bold]", style="cyan")
+    console.print("  [dim]Optionally rename the admin user or change email/password.[/dim]")
+    console.print()
+
+    if not Confirm.ask("  Do you want to update the admin profile?", default=False):
+        return None
+
+    console.print()
+    update: dict[str, Any] = {}
+
+    new_username = Prompt.ask(
+        "    New username",
+        default=current_admin["username"],
+    )
+    if new_username != current_admin["username"]:
+        update["new_username"] = new_username
+        console.print(f"    [yellow]→[/yellow] Will rename '{current_admin['username']}' to '{new_username}'")
+
+    new_email = Prompt.ask(
+        "    New email",
+        default=current_admin["email"],
+    )
+    if new_email != current_admin["email"]:
+        update["new_email"] = new_email
+        console.print(f"    [yellow]→[/yellow] Will change email to '{new_email}'")
+
+    if Confirm.ask("    Change password?", default=False):
+        update["change_password"] = True
+        console.print("    [yellow]→[/yellow] Will prompt for new password during setup")
+        console.print("    [dim]    (Set NEW_ADMIN_PASSWORD env var before running 'just setup')[/dim]")
+
+    if not update:
+        console.print("    [dim]No changes to admin profile.[/dim]")
+        return None
+
+    return update
+
+
+def prompt_organization(step_num: int) -> dict[str, Any] | None:
     """Prompt for organization setup."""
     console.print()
-    console.print("[bold]3. Organization Setup[/bold]", style="cyan")
+    console.print(f"[bold]{step_num}. Organization Setup[/bold]", style="cyan")
     console.print()
 
     if not Confirm.ask("  Do you want to create an organization?", default=True):
@@ -126,10 +198,10 @@ def prompt_organization() -> dict[str, Any] | None:
     return org
 
 
-def prompt_users(org: dict[str, Any] | None) -> list[dict[str, Any]]:
+def prompt_users(org: dict[str, Any] | None, step_num: int) -> list[dict[str, Any]]:
     """Prompt for user creation."""
     console.print()
-    console.print("[bold]4. User Creation[/bold]", style="cyan")
+    console.print(f"[bold]{step_num}. User Creation[/bold]", style="cyan")
     console.print("  [dim]Passwords are read from {USERNAME}_PASSWORD env vars or auto-generated.[/dim]")
     console.print()
 
@@ -161,10 +233,10 @@ def prompt_users(org: dict[str, Any] | None) -> list[dict[str, Any]]:
     return users
 
 
-def prompt_oauth_apps() -> list[dict[str, Any]]:
+def prompt_oauth_apps(step_num: int) -> list[dict[str, Any]]:
     """Prompt for OAuth app configuration."""
     console.print()
-    console.print("[bold]5. OAuth Applications[/bold]", style="cyan")
+    console.print(f"[bold]{step_num}. OAuth Applications[/bold]", style="cyan")
     console.print("  [dim]OAuth apps allow external services to authenticate via Gitea.[/dim]")
     console.print()
 
@@ -208,7 +280,7 @@ def show_summary(config: dict[str, Any]) -> None:
     console.print()
 
     # Gitea & Admin
-    table = Table(title="Server & Admin", show_header=False, box=None)
+    table = Table(title="Server & Current Admin", show_header=False, box=None)
     table.add_column("Key", style="dim")
     table.add_column("Value")
     table.add_row("Gitea URL", config["gitea"]["url"])
@@ -216,6 +288,21 @@ def show_summary(config: dict[str, Any]) -> None:
     table.add_row("Admin Email", config["admin"]["email"])
     console.print(table)
     console.print()
+
+    # Admin Update
+    if config.get("admin_update"):
+        table = Table(title="Admin Profile Updates", show_header=False, box=None)
+        table.add_column("Change", style="dim")
+        table.add_column("Value")
+        update = config["admin_update"]
+        if update.get("new_username"):
+            table.add_row("Rename to", update["new_username"])
+        if update.get("new_email"):
+            table.add_row("New email", update["new_email"])
+        if update.get("change_password"):
+            table.add_row("Password", "[yellow]Will be changed[/yellow]")
+        console.print(table)
+        console.print()
 
     # Organization
     if config.get("organization"):
@@ -271,6 +358,9 @@ def build_toml_config(config: dict[str, Any]) -> dict[str, Any]:
         "admin": config["admin"],
     }
 
+    if config.get("admin_update"):
+        toml_config["admin_update"] = config["admin_update"]
+
     if config.get("organization"):
         org = config["organization"]
         toml_config["organization"] = {
@@ -316,14 +406,34 @@ def write_config(config: dict[str, Any]) -> bool:
 def main() -> None:
     welcome()
 
+    # Load defaults from .env
+    env_defaults = load_env_defaults()
+
     # Gather configuration
     config: dict[str, Any] = {}
 
-    config["gitea"] = prompt_gitea_config()
-    config["admin"] = prompt_admin_config()
-    config["organization"] = prompt_organization()
-    config["users"] = prompt_users(config.get("organization"))
-    config["oauth_apps"] = prompt_oauth_apps()
+    # Step 1: Gitea URL
+    config["gitea"] = prompt_gitea_config(env_defaults)
+
+    # Step 2: Current admin (for API auth)
+    config["admin"] = prompt_current_admin(env_defaults)
+
+    # Step 3: Optional admin update
+    config["admin_update"] = prompt_admin_update(config["admin"])
+
+    # Dynamic step numbering based on whether admin update was shown
+    next_step = 4
+
+    # Step 4: Organization
+    config["organization"] = prompt_organization(next_step)
+    next_step += 1
+
+    # Step 5: Users
+    config["users"] = prompt_users(config.get("organization"), next_step)
+    next_step += 1
+
+    # Step 6: OAuth apps
+    config["oauth_apps"] = prompt_oauth_apps(next_step)
 
     # Show summary
     show_summary(config)
@@ -336,14 +446,24 @@ def main() -> None:
 
     if write_config(config):
         console.print()
+
+        # Build next steps based on config
+        next_steps = "Next steps:\n"
+        next_steps += "  1. Ensure [cyan]GITEA_ADMIN_PASSWORD[/cyan] is set in .env\n"
+        next_steps += "     [dim](default: admin123, set by 'just init')[/dim]\n"
+
+        if config.get("admin_update", {}).get("change_password"):
+            next_steps += "  2. Set [cyan]NEW_ADMIN_PASSWORD[/cyan] in .env for new password\n"
+            next_steps += "  3. Run [cyan]just setup-dry-run[/cyan] to preview\n"
+            next_steps += "  4. Run [cyan]just setup[/cyan] to apply"
+        else:
+            next_steps += "  2. Run [cyan]just setup-dry-run[/cyan] to preview\n"
+            next_steps += "  3. Run [cyan]just setup[/cyan] to apply"
+
         console.print(
             Panel.fit(
                 f"[green]✓[/green] Configuration written to [cyan]{CONFIG_PATH}[/cyan]\n\n"
-                "Next steps:\n"
-                "  1. Ensure [cyan]GITEA_ADMIN_PASSWORD[/cyan] is set in .env\n"
-                "     [dim](default: admin123, set by 'just init')[/dim]\n"
-                "  2. Run [cyan]just setup-dry-run[/cyan] to preview\n"
-                "  3. Run [cyan]just setup[/cyan] to apply",
+                + next_steps,
                 title="Done",
                 border_style="green",
             )
