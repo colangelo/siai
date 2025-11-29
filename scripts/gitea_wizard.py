@@ -6,17 +6,42 @@
 """
 Gitea Setup Wizard - Interactive configuration generator with Rich UI.
 
-Usage:
+Usage (interactive):
     uv run scripts/gitea_wizard.py
     just wizard
+
+Usage (non-interactive):
+    uv run scripts/gitea_wizard.py --non-interactive \\
+        --gitea-url http://gitea.localhost \\
+        --admin-username admin \\
+        --admin-email admin@localhost \\
+        --new-admin-username ac \\
+        --new-admin-email ac@example.com \\
+        --new-admin-password  \\
+        --org-name myorg \\
+        --org-description "Development org" \\
+        --org-visibility public \\
+        --team developers:write:alice,bob \\
+        --team maintainers:admin:alice \\
+        --user alice:alice@example.com \\
+        --user bob:bob@example.com \\
+        --oauth "Woodpecker CI:http://ci.localhost/authorize:confidential"
+
+    # Minimal non-interactive (just OAuth for Woodpecker):
+    uv run scripts/gitea_wizard.py --non-interactive --oauth-woodpecker
+
+    # From backup file:
+    uv run scripts/gitea_wizard.py --from-toml config/setup.toml.backup.20251129-133054
 """
 
 from __future__ import annotations
 
+import argparse
 import os
 import secrets
 import string
 import sys
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -442,7 +467,311 @@ def write_config(config: dict[str, Any]) -> bool:
     return True
 
 
+def parse_args() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Gitea Setup Wizard - Generate config/setup.toml",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Interactive mode (default)
+  %(prog)s
+
+  # Non-interactive with admin rename and Woodpecker OAuth
+  %(prog)s --non-interactive --new-admin-username ac --new-admin-password --oauth-woodpecker
+
+  # From existing TOML backup
+  %(prog)s --from-toml config/setup.toml.backup.20251129-133054
+
+  # Full configuration
+  %(prog)s --non-interactive \\
+    --admin-username admin --admin-email admin@localhost \\
+    --new-admin-username ac --new-admin-email ac@example.com --new-admin-password \\
+    --org-name myorg --org-visibility public \\
+    --team developers:write:alice,bob --team maintainers:admin:alice \\
+    --user alice:alice@example.com --user bob:bob@example.com \\
+    --oauth-woodpecker
+""",
+    )
+
+    # Mode selection
+    parser.add_argument(
+        "--non-interactive", "-n",
+        action="store_true",
+        help="Run in non-interactive mode (requires other arguments)",
+    )
+    parser.add_argument(
+        "--from-toml",
+        type=Path,
+        metavar="FILE",
+        help="Load configuration from existing TOML file (e.g., backup)",
+    )
+    parser.add_argument(
+        "--overwrite", "-y",
+        action="store_true",
+        help="Overwrite existing config/setup.toml without prompting",
+    )
+
+    # Gitea server
+    parser.add_argument(
+        "--gitea-url",
+        default="http://gitea.localhost",
+        help="Gitea server URL (default: http://gitea.localhost)",
+    )
+
+    # Current admin (for API auth)
+    parser.add_argument(
+        "--admin-username",
+        default="admin",
+        help="Current admin username for API auth (default: admin)",
+    )
+    parser.add_argument(
+        "--admin-email",
+        default="admin@localhost",
+        help="Current admin email (default: admin@localhost)",
+    )
+
+    # Admin update
+    parser.add_argument(
+        "--new-admin-username",
+        metavar="NAME",
+        help="Rename admin to this username",
+    )
+    parser.add_argument(
+        "--new-admin-email",
+        metavar="EMAIL",
+        help="Change admin email to this",
+    )
+    parser.add_argument(
+        "--new-admin-password",
+        action="store_true",
+        help="Generate and set new admin password (saved to .env)",
+    )
+
+    # Organization
+    parser.add_argument(
+        "--org-name",
+        metavar="NAME",
+        help="Organization name (omit to skip org creation)",
+    )
+    parser.add_argument(
+        "--org-description",
+        default="",
+        help="Organization description",
+    )
+    parser.add_argument(
+        "--org-visibility",
+        choices=["public", "private"],
+        default="public",
+        help="Organization visibility (default: public)",
+    )
+
+    # Teams (can be specified multiple times)
+    parser.add_argument(
+        "--team",
+        action="append",
+        metavar="NAME:PERM:MEMBERS",
+        help="Add team as 'name:permission:member1,member2' (e.g., 'developers:write:alice,bob')",
+    )
+
+    # Users (can be specified multiple times)
+    parser.add_argument(
+        "--user",
+        action="append",
+        metavar="NAME:EMAIL",
+        help="Add user as 'username:email' (e.g., 'alice:alice@example.com')",
+    )
+
+    # OAuth apps
+    parser.add_argument(
+        "--oauth-woodpecker",
+        action="store_true",
+        help="Add default Woodpecker CI OAuth app",
+    )
+    parser.add_argument(
+        "--oauth",
+        action="append",
+        metavar="NAME:REDIRECT:TYPE",
+        help="Add OAuth app as 'name:redirect_uri:confidential|public'",
+    )
+
+    return parser.parse_args()
+
+
+def load_from_toml(path: Path) -> dict[str, Any]:
+    """Load configuration from existing TOML file."""
+    with open(path, "rb") as f:
+        toml_data = tomllib.load(f)
+
+    config: dict[str, Any] = {
+        "gitea": toml_data.get("gitea", {"url": "http://gitea.localhost"}),
+        "admin": toml_data.get("admin", {"username": "admin", "email": "admin@localhost"}),
+    }
+
+    # Admin update
+    if "admin_update" in toml_data:
+        config["admin_update"] = toml_data["admin_update"]
+        # If change_password is set, generate a new password
+        if toml_data["admin_update"].get("change_password"):
+            config["admin_update"]["generated_password"] = generate_safe_password(24)
+
+    # Organization with teams
+    if "organization" in toml_data:
+        org = toml_data["organization"]
+        config["organization"] = {
+            "name": org.get("name", ""),
+            "description": org.get("description", ""),
+            "visibility": org.get("visibility", "public"),
+            "teams": org.get("teams", []),
+        }
+
+    # Users
+    if "users" in toml_data:
+        config["users"] = toml_data["users"]
+
+    # OAuth apps
+    if "oauth_apps" in toml_data:
+        config["oauth_apps"] = toml_data["oauth_apps"]
+
+    return config
+
+
+def build_config_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    """Build configuration from command line arguments."""
+    config: dict[str, Any] = {
+        "gitea": {"url": args.gitea_url},
+        "admin": {"username": args.admin_username, "email": args.admin_email},
+    }
+
+    # Admin update
+    admin_update: dict[str, Any] = {}
+    if args.new_admin_username:
+        admin_update["new_username"] = args.new_admin_username
+    if args.new_admin_email:
+        admin_update["new_email"] = args.new_admin_email
+    if args.new_admin_password:
+        admin_update["change_password"] = True
+        admin_update["generated_password"] = generate_safe_password(24)
+    if admin_update:
+        config["admin_update"] = admin_update
+
+    # Organization
+    if args.org_name:
+        config["organization"] = {
+            "name": args.org_name,
+            "description": args.org_description,
+            "visibility": args.org_visibility,
+            "teams": [],
+        }
+
+        # Parse teams
+        if args.team:
+            for team_str in args.team:
+                parts = team_str.split(":")
+                if len(parts) >= 2:
+                    name = parts[0]
+                    permission = parts[1] if parts[1] in ("read", "write", "admin") else "write"
+                    members = parts[2].split(",") if len(parts) > 2 and parts[2] else []
+                    config["organization"]["teams"].append({
+                        "name": name,
+                        "permission": permission,
+                        "members": members,
+                    })
+
+    # Users
+    if args.user:
+        config["users"] = []
+        for user_str in args.user:
+            parts = user_str.split(":")
+            username = parts[0]
+            email = parts[1] if len(parts) > 1 else f"{username}@example.com"
+            config["users"].append({"username": username, "email": email})
+
+    # OAuth apps
+    oauth_apps: list[dict[str, Any]] = []
+    if args.oauth_woodpecker:
+        oauth_apps.append({
+            "name": "Woodpecker CI",
+            "redirect_uri": "http://ci.localhost/authorize",
+            "confidential": True,
+        })
+    if args.oauth:
+        for oauth_str in args.oauth:
+            parts = oauth_str.split(":")
+            if len(parts) >= 2:
+                name = parts[0]
+                redirect_uri = parts[1]
+                # Handle redirect URIs with colons (http://...)
+                if len(parts) > 3:
+                    redirect_uri = ":".join(parts[1:-1])
+                    confidential = parts[-1].lower() != "public"
+                elif len(parts) == 3:
+                    confidential = parts[2].lower() != "public"
+                else:
+                    confidential = True
+                oauth_apps.append({
+                    "name": name,
+                    "redirect_uri": redirect_uri,
+                    "confidential": confidential,
+                })
+    if oauth_apps:
+        config["oauth_apps"] = oauth_apps
+
+    return config
+
+
+def run_non_interactive(args: argparse.Namespace) -> None:
+    """Run wizard in non-interactive mode."""
+    # Load config from TOML or args
+    if args.from_toml:
+        if not args.from_toml.exists():
+            console.print(f"[red]Error:[/red] File not found: {args.from_toml}")
+            sys.exit(1)
+        console.print(f"Loading configuration from [cyan]{args.from_toml}[/cyan]")
+        config = load_from_toml(args.from_toml)
+    else:
+        config = build_config_from_args(args)
+
+    # Show summary
+    show_summary(config)
+
+    # Check for existing file
+    if CONFIG_PATH.exists() and not args.overwrite:
+        console.print(f"\n[yellow]Warning:[/yellow] {CONFIG_PATH} already exists.")
+        console.print("Use --overwrite (-y) to replace it.")
+        sys.exit(1)
+
+    # Write config
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    toml_config = build_toml_config(config)
+    with open(CONFIG_PATH, "wb") as f:
+        tomli_w.dump(toml_config, f)
+
+    console.print(f"\n[green]✓[/green] Configuration written to [cyan]{CONFIG_PATH}[/cyan]")
+
+    # Save generated password to .env if present
+    admin_update = config.get("admin_update", {})
+    generated_password = admin_update.get("generated_password")
+    if generated_password:
+        if update_env_file("NEW_GITEA_ADMIN_PASSWORD", generated_password):
+            console.print(f"[green]✓[/green] Saved NEW_GITEA_ADMIN_PASSWORD to .env: [cyan]{generated_password}[/cyan]")
+        else:
+            console.print("[yellow]⚠[/yellow] Could not save password to .env")
+            console.print(f"  Generated password: [cyan]{generated_password}[/cyan]")
+
+    console.print("\nNext steps:")
+    console.print("  1. Run [cyan]just setup-dry-run[/cyan] to preview")
+    console.print("  2. Run [cyan]just setup[/cyan] to apply")
+
+
 def main() -> None:
+    args = parse_args()
+
+    # Non-interactive mode
+    if args.non_interactive or args.from_toml:
+        run_non_interactive(args)
+        return
+
     welcome()
 
     # Load defaults from .env

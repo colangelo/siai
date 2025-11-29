@@ -34,16 +34,21 @@ ENV_FILE = Path(".env")
 
 
 def get_woodpecker_env(var_name: str) -> str | None:
-    """Get environment variable from running Woodpecker container."""
+    """Get environment variable from running Woodpecker container using docker inspect."""
     try:
         result = subprocess.run(
-            ["docker", "exec", "wpk-server", "printenv", var_name],
+            [
+                "docker", "inspect", "wpk-server",
+                "--format", "{{range .Config.Env}}{{println .}}{{end}}"
+            ],
             capture_output=True,
             text=True,
             timeout=5,
         )
         if result.returncode == 0:
-            return result.stdout.strip()
+            for line in result.stdout.splitlines():
+                if line.startswith(f"{var_name}="):
+                    return line.split("=", 1)[1]
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
     return None
