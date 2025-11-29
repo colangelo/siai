@@ -7,8 +7,8 @@ services:
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      # Only route containers from the siai-sidi compose project (prevents conflicts with other Traefik instances)
-      - "--providers.docker.constraints=Label(`com.docker.compose.project`,`siai-sidi`)"
+      # Only route containers from the siai compose project (prevents conflicts with other Traefik instances)
+      - "--providers.docker.constraints=Label(`com.docker.compose.project`,`siai`)"
       - "--entrypoints.web.address=:80"
       # Add TLS/ACME here if you want automatic HTTPS
     ports:
@@ -130,7 +130,7 @@ services:
       - WOODPECKER_SERVER=wpk-server:9000
       - WOODPECKER_AGENT_SECRET=${WOODPECKER_AGENT_SECRET}
       # Make agent use same Docker network as Gitea so clone URLs just work
-      - WOODPECKER_BACKEND_DOCKER_NETWORK=siai-sidi_devnet
+      - WOODPECKER_BACKEND_DOCKER_NETWORK=siai_devnet
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:

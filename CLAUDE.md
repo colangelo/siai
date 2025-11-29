@@ -79,7 +79,7 @@ just nuclear                # Full reset with config backup
 ## Project Structure
 
 ```
-siai-sidi/
+siai/
 ├── scripts/                    # Python automation (PEP 723 + uv)
 │   ├── gitea_wizard.py         # Interactive setup wizard
 │   ├── gitea_setup.py          # Provision users, orgs, teams

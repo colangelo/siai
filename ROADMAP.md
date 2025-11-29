@@ -13,7 +13,7 @@ This document outlines the planned development phases for the CI/CD stack.
 ### Project Structure
 
 ```txt
-siai-sidi/
+siai/
 ├── scripts/
 │   ├── gitea_setup.py       # PEP 723 script: create org, users, teams
 │   └── gitea_oauth.py       # PEP 723 script: create OAuth apps
