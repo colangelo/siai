@@ -340,7 +340,8 @@ def main() -> None:
             Panel.fit(
                 f"[green]✓[/green] Configuration written to [cyan]{CONFIG_PATH}[/cyan]\n\n"
                 "Next steps:\n"
-                "  1. Set [cyan]GITEA_ADMIN_PASSWORD[/cyan] in .env\n"
+                "  1. Ensure [cyan]GITEA_ADMIN_PASSWORD[/cyan] is set in .env\n"
+                "     [dim](default: admin123, set by 'just init')[/dim]\n"
                 "  2. Run [cyan]just setup-dry-run[/cyan] to preview\n"
                 "  3. Run [cyan]just setup[/cyan] to apply",
                 title="Done",
