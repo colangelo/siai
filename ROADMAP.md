@@ -282,12 +282,101 @@ Features:
 
 ---
 
-## v0.4.0 - Identity Provider Integration
+## v0.4.0 - Authentication & Access Configuration
 
 ### Goals
 
-- Add external authentication provider
-- Enable SSO for Gitea and Woodpecker
+- Add flexible authentication configuration wizard
+- Support multiple security profiles (development → production)
+- Enable SSO for Gitea and Woodpecker via external identity provider
+- Fully idempotent, CLI-controllable scripts
+
+### Authentication Wizard
+
+New wizard to configure platform access with multiple security profiles:
+
+**Security Profiles:**
+
+| Profile | Auth | HTTPS | Use Case |
+|---------|------|-------|----------|
+| **local-dev** | None (current default) | No | Local development, quick testing |
+| **local-secure** | Built-in Gitea auth | Self-signed TLS | Local with login required |
+| **production-basic** | Built-in Gitea auth | Let's Encrypt | Simple production setup |
+| **production-sso** | External IdP (OIDC) | Let's Encrypt | Enterprise SSO integration |
+
+**CLI Interface:**
+
+```bash
+# Interactive wizard
+just auth-wizard
+
+# Non-interactive with CLI options
+uv run scripts/auth_wizard.py \
+  --profile production-basic \
+  --domain git.example.com \
+  --https \
+  --cert-email admin@example.com \
+  --non-interactive
+
+# Apply existing config
+uv run scripts/auth_wizard.py --from-toml config/auth.toml
+
+# Dry-run to preview changes
+uv run scripts/auth_wizard.py --profile local-secure --dry-run
+```
+
+**CLI Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--profile` | Security profile: `local-dev`, `local-secure`, `production-basic`, `production-sso` |
+| `--domain` | Public domain (required for HTTPS profiles) |
+| `--https` | Enable HTTPS (auto-selects cert method based on domain) |
+| `--cert-method` | Certificate method: `letsencrypt`, `self-signed`, `custom` |
+| `--cert-email` | Email for Let's Encrypt registration |
+| `--idp` | Identity provider: `zitadel`, `authentik`, `keycloak` |
+| `--idp-url` | External IdP URL (for existing deployments) |
+| `--non-interactive` / `-n` | Run without prompts |
+| `--from-toml FILE` | Load configuration from TOML file |
+| `--dry-run` | Preview changes without applying |
+| `--force` / `-y` | Overwrite existing configuration |
+
+**Generated Configuration:**
+
+- Updates `.env` with TLS and auth settings
+- Creates/updates `config/auth.toml` for reproducibility
+- Modifies `docker-compose.override.yml` for HTTPS labels
+- Optionally provisions IdP container and configuration
+
+**Idempotency:**
+
+- Safe to run multiple times with same options
+- Detects existing configuration and shows diff
+- Backup existing config before changes
+- Rollback support via timestamped backups
+
+### New Files
+
+- `scripts/auth_wizard.py` - Authentication configuration wizard (PEP 723)
+- `config/auth.toml.example` - Authentication configuration template
+- `docker-compose.override.yml.example` - HTTPS override example
+
+### Justfile Updates
+
+```bash
+just auth-wizard           # Interactive authentication wizard
+just auth-wizard-dry-run   # Preview authentication changes
+just auth-apply            # Apply auth configuration from config/auth.toml
+```
+
+---
+
+## v0.4.1 - Identity Provider Integration
+
+### Goals
+
+- Add external authentication provider (for `production-sso` profile)
+- Integrate IdP with Gitea and Woodpecker
 
 ### Provider Options (evaluate)
 
@@ -316,32 +405,16 @@ Features:
 
 ### Goals
 
-- TLS/HTTPS via reverse proxy + Let's Encrypt (or self-signed for local)
-- Evaluate Caddy as alternative to Traefik
 - Secrets management improvements
 - Backup/restore procedures
-
-### Reverse Proxy Evaluation
-
-| Feature | Traefik | Caddy |
-|---------|---------|-------|
-| **Auto HTTPS** | ACME support | Built-in, simpler |
-| **Config style** | Labels/API | Caddyfile |
-| **Docker integration** | Native labels | Requires explicit config |
-| **Performance** | High | High |
-| **Complexity** | Higher | Lower |
-
-Decision criteria:
-
-- For Docker-native workflows: Traefik
-- For simplicity and automatic HTTPS: Caddy
+- Health monitoring
 
 ### Planned Features
 
-- Reverse proxy ACME configuration for automatic certificates
 - Docker secrets or external secrets manager integration
 - `just backup` / `just restore` tasks for PostgreSQL
 - Health monitoring and alerting hooks
+- Resource limits and container hardening
 
 ---
 
