@@ -255,6 +255,33 @@ Features:
 
 ---
 
+## v0.3.6 - Demo Repository Refactoring & uv Migration ✅
+
+### Goals
+
+- Extract demo repository templates to dedicated folder
+- Migrate to uv for modern Python package management
+- Improve maintainability of demo files
+
+### Changes
+
+- **`demo-repo/` folder** - Template files extracted from script:
+  - `main.py` - FastAPI application
+  - `pyproject.toml` - Project config (replaces requirements.txt)
+  - `Dockerfile` - Uses uv for fast installs
+  - `.woodpecker.yaml` - CI pipeline with uv image
+  - `README.md` - Documentation with uv instructions
+  - `issues.json` - Sample issues
+- **uv integration**:
+  - Dockerfile uses `ghcr.io/astral-sh/uv` for dependency installation
+  - CI lint step uses `ghcr.io/astral-sh/uv:python3.12-alpine`
+  - Local dev uses `uv sync` + `uv run`
+- **Script updates**:
+  - `gitea_demo.py` loads files from `demo-repo/` folder
+  - New `--demo-dir` option to customize template location
+
+---
+
 ## v0.4.0 - Identity Provider Integration
 
 ### Goals

@@ -32,6 +32,13 @@ siai/
 │   ├── gitea_setup.py          # Provision users, orgs, teams
 │   ├── gitea_oauth.py          # Create OAuth2 applications
 │   └── gitea_demo.py           # Create demo repository
+├── demo-repo/                  # Demo repository template files
+│   ├── main.py                 # FastAPI application
+│   ├── Dockerfile              # Multi-stage Docker build
+│   ├── .woodpecker.yaml        # CI pipeline definition
+│   ├── requirements.txt        # Python dependencies
+│   ├── README.md               # Demo documentation
+│   └── issues.json             # Sample issues to create
 ├── config/
 │   ├── init-db.sql             # PostgreSQL database init
 │   ├── setup.toml.example      # User/org configuration template

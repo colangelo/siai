@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2025-11-29
+
+### Changed
+
+- **Demo repository refactored** - Extracted to `demo-repo/` folder:
+  - Template files now in `demo-repo/` instead of embedded in script
+  - Migrated from `requirements.txt` to `pyproject.toml`
+  - Uses [uv](https://docs.astral.sh/uv/) for package management
+  - Dockerfile uses uv for fast dependency installation
+  - CI pipeline uses `ghcr.io/astral-sh/uv` image for linting
+  - Script loads files from folder with `--demo-dir` option
+- **Project renamed** to SiAI, repo at `github.com/colangelo/siai`
+
 ## [0.3.5] - 2025-11-29
 
 ### Changed
@@ -166,6 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caddy alternative configuration (`Caddyfile.example`)
 - Basic documentation in `README.md`
 
+[0.3.6]: https://github.com/colangelo/siai/compare/v0.3.5...v0.3.6
 [0.3.5]: https://github.com/colangelo/siai/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/colangelo/siai/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/colangelo/siai/compare/v0.3.2...v0.3.3
