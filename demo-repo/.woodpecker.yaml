@@ -28,7 +28,25 @@ steps:
     when:
       - event: [manual, tag]
     commands:
-      - docker build -t demo-app:${CI_COMMIT_SHA:0:8} .
-      - docker images demo-app
+      # Tag for local registry (127.0.0.1 is in Docker's insecure registries)
+      # Traefik routes /v2/* to Gitea container registry
+      - docker build -t 127.0.0.1/admin/demo-app:${CI_COMMIT_SHA:0:8} .
+      - docker tag 127.0.0.1/admin/demo-app:${CI_COMMIT_SHA:0:8} 127.0.0.1/admin/demo-app:latest
+      - docker images 127.0.0.1/admin/demo-app
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  - name: push
+    image: docker:cli
+    when:
+      - event: [manual, tag]
+    environment:
+      GITEA_TOKEN:
+        from_secret: gitea_token
+    commands:
+      # Push to Gitea registry via Traefik (127.0.0.1:80/v2/*)
+      - echo "$GITEA_TOKEN" | docker login 127.0.0.1 --username admin --password-stdin
+      - docker push 127.0.0.1/admin/demo-app:${CI_COMMIT_SHA:0:8}
+      - docker push 127.0.0.1/admin/demo-app:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

@@ -73,9 +73,14 @@ services:
       - gitea-data:/data
     labels:
       - "traefik.enable=true"
+      # Main Gitea UI
       - "traefik.http.routers.gitea.rule=Host(`gitea.localhost`)"
       - "traefik.http.routers.gitea.entrypoints=web"
       - "traefik.http.services.gitea.loadbalancer.server.port=3000"
+      # Container registry on localhost/v2 (allows Docker to push without HTTPS)
+      - "traefik.http.routers.gitea-registry.rule=PathPrefix(`/v2`)"
+      - "traefik.http.routers.gitea-registry.entrypoints=web"
+      - "traefik.http.routers.gitea-registry.service=gitea"
     networks:
       - devnet
 
@@ -131,11 +136,16 @@ services:
     depends_on:
       wpk-server:
         condition: service_healthy
+    extra_hosts:
+      # Allow pipeline containers to reach gitea.localhost for registry push
+      - "gitea.localhost:host-gateway"
     environment:
       - WOODPECKER_SERVER=wpk-server:9000
       - WOODPECKER_AGENT_SECRET=${WOODPECKER_AGENT_SECRET}
       # Make agent use same Docker network as Gitea so clone URLs just work
       - WOODPECKER_BACKEND_DOCKER_NETWORK=siai_devnet
+      # Pass extra_hosts to pipeline containers for registry access
+      - WOODPECKER_BACKEND_DOCKER_EXTRA_HOSTS=gitea.localhost:host-gateway
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
