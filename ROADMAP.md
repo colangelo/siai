@@ -79,6 +79,8 @@ email = "bob@example.com"
 - `tomllib` (stdlib since Python 3.11) for TOML parsing
 - Type hints throughout
 - No external Gitea SDK (direct API calls for transparency)
+- Idempotency
+- Fully scriptable
 
 **Script: `scripts/gitea_setup.py`**
 
@@ -281,6 +283,7 @@ Features:
 | **Complexity** | Higher | Lower |
 
 Decision criteria:
+
 - For Docker-native workflows: Traefik
 - For simplicity and automatic HTTPS: Caddy
 

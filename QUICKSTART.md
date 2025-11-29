@@ -10,28 +10,30 @@ Get your local Gitea + Woodpecker CI stack running in 5 minutes.
 
 ## Quick Setup
 
+### Option A: Fully Automated (Recommended)
+
 ```bash
-# 1. Initialize configuration
-just init
-
-# 2. Generate agent secret (automatically saved to .env)
-just secret
-
-# 3. Start the stack
-just up
-
-# 4. Wait ~10 seconds for services to start, then bootstrap Gitea
-just bootstrap
-
-# 5. Restart to apply OAuth config
-just restart
+just quickstart
 ```
 
-The bootstrap command will:
-- Initialize Gitea database
-- Create admin user (default: `admin` / `admin123`)
-- Create OAuth app for Woodpecker
-- Automatically save OAuth credentials to `.env`
+This single command will:
+- Initialize configuration files
+- Generate required secrets
+- Start all containers
+- Configure Gitea and create OAuth app
+- Create a demo repository
+
+### Option B: Step-by-Step
+
+```bash
+just step1-init      # Create .env and config/setup.toml
+just step2-secrets   # Generate WOODPECKER_AGENT_SECRET
+just step3-start     # Start all containers
+# Wait ~10 seconds for services to start
+just step4-configure # Initialize Gitea + create OAuth app
+just restart         # Apply OAuth credentials
+just step5-demo      # Create demo repository (optional)
+```
 
 ## Access Your Stack
 
@@ -83,7 +85,7 @@ just status      # Check container status
 
 ```bash
 just nuclear     # Backup configs + full reset
-just init        # Start fresh
+just quickstart  # Start fresh with full automation
 ```
 
 ## Demo Repository

@@ -6,37 +6,94 @@
 default:
     @just --list
 
-# === Bootstrap ===
+# ══════════════════════════════════════════════════════════════════════════════
+# QUICKSTART - Run this for fully automated setup
+# ══════════════════════════════════════════════════════════════════════════════
 
-# Initialize .env and config from examples (won't overwrite existing)
-init:
+# 🚀 Fully automated setup: creates config, starts stack, initializes everything
+quickstart:
+    #!/usr/bin/env bash
+    set -e
+    echo "🚀 Quickstart: Automated CI/CD Stack Setup"
+    echo "==========================================="
+    echo ""
+
+    # Step 1: Initialize config files
+    echo "━━━ Step 1/5: Initializing configuration ━━━"
+    just step1-init
+    echo ""
+
+    # Step 2: Generate secrets
+    echo "━━━ Step 2/5: Generating secrets ━━━"
+    just step2-secrets
+    echo ""
+
+    # Step 3: Start containers
+    echo "━━━ Step 3/5: Starting containers ━━━"
+    just step3-start
+    echo ""
+
+    # Wait for services to be ready
+    echo "Waiting for services to start..."
+    sleep 10
+
+    # Step 4: Configure Gitea + OAuth
+    echo "━━━ Step 4/5: Configuring Gitea + OAuth ━━━"
+    just step4-configure
+    echo ""
+
+    # Restart to apply OAuth
+    echo "Restarting to apply OAuth credentials..."
+    just restart
+    sleep 5
+    echo ""
+
+    # Step 5: Create demo (optional but included in quickstart)
+    echo "━━━ Step 5/5: Creating demo repository ━━━"
+    just step5-demo || echo "Demo creation skipped (may need manual config)"
+    echo ""
+
+    echo "==========================================="
+    echo "✅ Quickstart complete!"
+    echo ""
+    echo "Access your stack:"
+    echo "  Gitea:      http://gitea.localhost"
+    echo "  Woodpecker: http://ci.localhost"
+    echo ""
+    echo "Default credentials:"
+    echo "  User: admin"
+    echo "  Pass: (check .env for GITEA_ADMIN_PASSWORD)"
+    echo ""
+    echo "Optional next steps:"
+    echo "  just wizard       # Customize users/orgs interactively"
+    echo "  just step6-apply  # Apply config/setup.toml changes"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SETUP STEPS (run in order, or use 'just quickstart')
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Step 1: Initialize .env and config from examples (won't overwrite existing)
+step1-init:
     #!/usr/bin/env bash
     if [ -f .env ]; then
-        echo ".env already exists, skipping copy"
+        echo "✓ .env already exists, skipping copy"
     else
         cp .env.example .env
-        echo "Created .env from .env.example"
+        echo "✓ Created .env from .env.example"
     fi
     if [ -f config/setup.toml ]; then
-        echo "config/setup.toml already exists, skipping copy"
+        echo "✓ config/setup.toml already exists, skipping copy"
     else
         cp config/setup.toml.example config/setup.toml
-        echo "Created config/setup.toml from config/setup.toml.example"
+        echo "✓ Created config/setup.toml from config/setup.toml.example"
     fi
-    echo ""
-    echo "Next steps:"
-    echo "  1. Run 'just secret' to generate WOODPECKER_AGENT_SECRET"
-    echo "  2. Edit .env with your settings"
-    echo "  3. Edit config/setup.toml for users/orgs (optional)"
-    echo "  4. Run 'just up' to start the stack"
-    echo "  5. Run 'just bootstrap' to initialize Gitea"
 
-# Generate and set WOODPECKER_AGENT_SECRET in .env
-secret:
+# Step 2: Generate required secrets (agent secret)
+step2-secrets:
     #!/usr/bin/env bash
     set -e
     if [ ! -f .env ]; then
-        echo "Error: .env not found. Run 'just init' first."
+        echo "Error: .env not found. Run 'just step1-init' first."
         exit 1
     fi
     SECRET=$(openssl rand -hex 32)
@@ -47,9 +104,97 @@ secret:
     fi
     echo "✓ WOODPECKER_AGENT_SECRET set in .env"
 
-# Interactive wizard to create config/setup.toml
+# Step 3: Start all services
+step3-start:
+    #!/usr/bin/env bash
+    unset WOODPECKER_GITEA_CLIENT WOODPECKER_GITEA_SECRET WOODPECKER_AGENT_SECRET 2>/dev/null || true
+    docker compose up -d
+    echo "✓ Services started"
+    echo ""
+    echo "Endpoints (wait ~10s for startup):"
+    echo "  Gitea:      http://gitea.localhost"
+    echo "  Woodpecker: http://ci.localhost"
+
+# Step 4: Configure Gitea (init DB + create admin + OAuth app)
+step4-configure:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && source .env
+
+    echo "=== Initializing Gitea database ==="
+    docker exec gitea gitea migrate
+    echo ""
+
+    echo "=== Creating admin user ==="
+    ADMIN_USER="${GITEA_ADMIN:-admin}"
+    ADMIN_EMAIL="${GITEA_ADMIN_EMAIL:-admin@localhost}"
+    ADMIN_PASS="${GITEA_ADMIN_PASSWORD:-admin123}"
+    docker exec gitea gitea admin user create \
+        --username "$ADMIN_USER" \
+        --password "$ADMIN_PASS" \
+        --email "$ADMIN_EMAIL" \
+        --admin \
+        --must-change-password=false
+    echo "✓ Admin user created: $ADMIN_USER"
+    echo ""
+
+    echo "=== Creating OAuth app for Woodpecker ==="
+    export GITEA_ADMIN="${GITEA_ADMIN:-admin}"
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_oauth.py --config config/setup.toml
+    echo ""
+
+    echo "✓ Gitea configured!"
+    echo "  Login: http://gitea.localhost"
+    echo "  User:  $ADMIN_USER"
+
+# Step 5: Create demo repository (optional)
+step5-demo:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && set -a && source .env && set +a
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_demo.py
+
+# Step 6: Apply users/orgs/teams from config/setup.toml (optional)
+step6-apply:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && set -a && source .env && set +a
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_setup.py
+
+# ══════════════════════════════════════════════════════════════════════════════
+# OPTIONAL TOOLS
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Interactive wizard to customize config/setup.toml
 wizard:
     uv run scripts/gitea_wizard.py
+
+# Preview what step6-apply would do (dry-run)
+step6-apply-dry-run:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && set -a && source .env && set +a
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_setup.py --dry-run
+
+# Preview what step5-demo would create (dry-run)
+step5-demo-dry-run:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && set -a && source .env && set +a
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_demo.py --dry-run
+
+# Create demo repository with sample issues
+step5-demo-with-issues:
+    #!/usr/bin/env bash
+    set -e
+    [ -f .env ] && set -a && source .env && set +a
+    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
+    uv run scripts/gitea_demo.py --create-issues
 
 # Show OAuth setup instructions (manual alternative)
 oauth-help:
@@ -63,128 +208,12 @@ oauth-help:
     @echo "4. Copy Client ID → WOODPECKER_GITEA_CLIENT in .env"
     @echo "5. Copy Client Secret → WOODPECKER_GITEA_SECRET in .env"
     @echo "6. Run 'just restart'"
-    @echo ""
-    @echo "Or use: just gitea-oauth (requires Python + uv)"
 
-# Initialize Gitea database and create admin user (run once after first 'just up')
-gitea-init:
-    #!/usr/bin/env bash
-    set -e
-    [ -f .env ] && source .env
-    echo "=== Initializing Gitea database ==="
-    docker exec gitea gitea migrate
-    echo ""
-    echo "=== Creating admin user ==="
-    ADMIN_USER="${GITEA_ADMIN:-admin}"
-    ADMIN_EMAIL="${GITEA_ADMIN_EMAIL:-admin@localhost}"
-    ADMIN_PASS="${GITEA_ADMIN_PASSWORD:-admin123}"
-    docker exec gitea gitea admin user create \
-        --username "$ADMIN_USER" \
-        --password "$ADMIN_PASS" \
-        --email "$ADMIN_EMAIL" \
-        --admin \
-        --must-change-password=false
-    echo ""
-    echo "✓ Gitea initialized!"
-    echo "  Login: http://gitea.localhost"
-    echo "  User:  $ADMIN_USER"
-    echo "  Pass:  $ADMIN_PASS"
-    echo ""
-    echo "Next: run 'just gitea-oauth' to create Woodpecker OAuth app"
+# ══════════════════════════════════════════════════════════════════════════════
+# STACK MANAGEMENT
+# ══════════════════════════════════════════════════════════════════════════════
 
-# Create OAuth2 app for Woodpecker using Python script
-gitea-oauth:
-    #!/usr/bin/env bash
-    set -e
-    [ -f .env ] && source .env
-    export GITEA_ADMIN="${GITEA_ADMIN:-admin}"
-    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
-    uv run scripts/gitea_oauth.py --config config/setup.toml
-
-# Create OAuth2 app using bash (fallback, no Python required)
-gitea-oauth-bash:
-    #!/usr/bin/env bash
-    set -e
-    [ -f .env ] && source .env
-    ADMIN_USER="${GITEA_ADMIN:-admin}"
-    ADMIN_PASS="${GITEA_ADMIN_PASSWORD:-admin123}"
-    REDIRECT_URI="${WOODPECKER_HOST:-http://ci.localhost}/authorize"
-
-    echo "=== Creating OAuth2 application for Woodpecker ==="
-    RESPONSE=$(curl -s -X POST "http://gitea.localhost/api/v1/user/applications/oauth2" \
-      -u "$ADMIN_USER:$ADMIN_PASS" \
-      -H "Content-Type: application/json" \
-      -d "{\"name\": \"Woodpecker CI\", \"redirect_uris\": [\"$REDIRECT_URI\"], \"confidential_client\": true}")
-
-    CLIENT_ID=$(echo "$RESPONSE" | grep -o '"client_id":"[^"]*"' | cut -d'"' -f4)
-    CLIENT_SECRET=$(echo "$RESPONSE" | grep -o '"client_secret":"[^"]*"' | cut -d'"' -f4)
-
-    if [ -z "$CLIENT_ID" ] || [ -z "$CLIENT_SECRET" ]; then
-        echo "Error: Failed to create OAuth app"
-        echo "$RESPONSE"
-        exit 1
-    fi
-
-    echo ""
-    echo "✓ OAuth2 app created!"
-    echo ""
-    echo "Add these to your .env file:"
-    echo "  WOODPECKER_GITEA_CLIENT=$CLIENT_ID"
-    echo "  WOODPECKER_GITEA_SECRET=$CLIENT_SECRET"
-    echo ""
-    echo "Then run: just restart"
-
-# Provision users, orgs, and teams from config/setup.toml
-setup:
-    #!/usr/bin/env bash
-    set -e
-    [ -f .env ] && set -a && source .env && set +a
-    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
-    uv run scripts/gitea_setup.py
-
-# Preview setup changes without applying (dry-run)
-setup-dry-run:
-    #!/usr/bin/env bash
-    set -e
-    [ -f .env ] && set -a && source .env && set +a
-    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
-    uv run scripts/gitea_setup.py --dry-run
-
-# Full bootstrap: init + oauth + show next steps
-bootstrap:
-    #!/usr/bin/env bash
-    set -e
-    just gitea-init
-    echo ""
-    just gitea-oauth
-
-# Create demo repository with Python app and CI pipeline
-demo:
-    #!/usr/bin/env bash
-    set -e
-    [ -f .env ] && set -a && source .env && set +a
-    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
-    uv run scripts/gitea_demo.py
-
-# Preview demo repository creation (dry-run)
-demo-dry-run:
-    #!/usr/bin/env bash
-    set -e
-    [ -f .env ] && set -a && source .env && set +a
-    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
-    uv run scripts/gitea_demo.py --dry-run
-
-# Create demo repository with sample issues
-demo-with-issues:
-    #!/usr/bin/env bash
-    set -e
-    [ -f .env ] && set -a && source .env && set +a
-    export GITEA_ADMIN_PASSWORD="${GITEA_ADMIN_PASSWORD:-admin123}"
-    uv run scripts/gitea_demo.py --create-issues
-
-# === Stack Management ===
-
-# Start all services (unset env vars to ensure .env is used)
+# Start all services (alias for 3-start)
 up:
     #!/usr/bin/env bash
     unset WOODPECKER_GITEA_CLIENT WOODPECKER_GITEA_SECRET WOODPECKER_AGENT_SECRET 2>/dev/null || true
@@ -204,7 +233,9 @@ restart:
 status:
     docker compose ps
 
-# === Logs ===
+# ══════════════════════════════════════════════════════════════════════════════
+# LOGS
+# ══════════════════════════════════════════════════════════════════════════════
 
 # Follow logs for all services
 logs:
@@ -230,7 +261,9 @@ logs-agent:
 logs-traefik:
     docker compose logs -f traefik
 
-# === Health & Debug ===
+# ══════════════════════════════════════════════════════════════════════════════
+# HEALTH & DEBUG
+# ══════════════════════════════════════════════════════════════════════════════
 
 # Check if services are healthy
 health:
@@ -249,7 +282,9 @@ health-woodpecker:
 shell service:
     docker compose exec {{ service }} sh
 
-# === Cleanup ===
+# ══════════════════════════════════════════════════════════════════════════════
+# CLEANUP
+# ══════════════════════════════════════════════════════════════════════════════
 
 # Stop and remove containers, networks
 clean:
@@ -260,7 +295,7 @@ clean-all:
     @echo "This will delete all data (Gitea repos, Woodpecker DB)!"
     @read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] && docker compose down -v || echo "Aborted"
 
-# ☢️  Full reset: backups only configs (.env, config/setup.toml), then removes EVERYTHING (repos, users, CI history) for fresh start
+# ☢️  Full reset: backup configs, remove EVERYTHING, start fresh
 nuclear:
     #!/usr/bin/env bash
     set -e
@@ -288,14 +323,18 @@ nuclear:
     echo "☢️  Nuclear reset complete!"
     echo ""
     echo "To start fresh, run:"
-    echo "  just init        # Create .env and config/setup.toml"
-    echo "  just secret      # Generate agent secret (add to .env)"
-    echo "  just up          # Start stack"
-    echo "  just bootstrap   # Initialize Gitea + OAuth"
+    echo "  just quickstart      # Fully automated setup"
     echo ""
-    echo "See QUICKSTART.md for detailed instructions."
+    echo "Or step-by-step:"
+    echo "  just step1-init      # Create config files"
+    echo "  just step2-secrets   # Generate secrets"
+    echo "  just step3-start     # Start containers"
+    echo "  just step4-configure # Initialize Gitea + OAuth"
+    echo "  just step5-demo      # Create demo repo (optional)"
 
-# === URLs ===
+# ══════════════════════════════════════════════════════════════════════════════
+# BROWSER SHORTCUTS
+# ══════════════════════════════════════════════════════════════════════════════
 
 # Open Gitea in browser (macOS)
 [macos]
@@ -316,3 +355,31 @@ open-gitea:
 [linux]
 open-ci:
     xdg-open http://ci.localhost
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LEGACY ALIASES (for backwards compatibility)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Alias: init → step1-init
+init: step1-init
+
+# Alias: secret → step2-secrets
+secret: step2-secrets
+
+# Alias: bootstrap → step4-configure
+bootstrap: step4-configure
+
+# Alias: setup → step6-apply
+setup: step6-apply
+
+# Alias: setup-dry-run → step6-apply-dry-run
+setup-dry-run: step6-apply-dry-run
+
+# Alias: demo → step5-demo
+demo: step5-demo
+
+# Alias: demo-dry-run → step5-demo-dry-run
+demo-dry-run: step5-demo-dry-run
+
+# Alias: demo-with-issues → step5-demo-with-issues
+demo-with-issues: step5-demo-with-issues

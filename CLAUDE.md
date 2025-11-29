@@ -28,38 +28,52 @@ Local OSS CI/CD stack: **Gitea + Woodpecker CI + Traefik** (Caddy alternative av
 ## Common Commands
 
 ```bash
-just init           # Bootstrap .env and config/setup.toml from examples
-just secret         # Generate WOODPECKER_AGENT_SECRET
-just wizard         # Interactive setup wizard (creates config/setup.toml)
-just up             # Start all services
-just bootstrap      # Initialize Gitea + create OAuth app
-just setup          # Provision users/orgs from config/setup.toml
-just setup-dry-run  # Preview setup changes
-just demo           # Create demo repository with CI pipeline
-just demo-dry-run   # Preview demo creation
+# === QUICKSTART (recommended) ===
+just quickstart      # 🚀 Fully automated setup (does everything)
 
-just down           # Stop all services
-just restart        # Restart after .env changes
-just status         # Show service status
-just health         # Status + endpoint URLs
+# === STEP-BY-STEP SETUP ===
+just step1-init      # Create .env and config/setup.toml from examples
+just step2-secrets   # Generate WOODPECKER_AGENT_SECRET
+just step3-start     # Start all services
+just step4-configure # Initialize Gitea + create OAuth app
+just step5-demo      # Create demo repository with CI pipeline
+just step6-apply     # Provision users/orgs from config/setup.toml
 
-just logs           # Follow all logs
-just logs-server    # Woodpecker server logs
-just logs-agent     # Woodpecker agent logs
+# === TOOLS ===
+just wizard          # Interactive setup wizard
+just step5-demo-dry-run   # Preview demo creation
+just step6-apply-dry-run  # Preview setup changes
 
-just clean          # Remove containers/networks
-just clean-all      # Also remove volumes (destructive)
+# === STACK MANAGEMENT ===
+just up              # Start all services
+just down            # Stop all services
+just restart         # Restart after .env changes
+just status          # Show service status
+just health          # Status + endpoint URLs
+
+# === LOGS ===
+just logs            # Follow all logs
+just logs-server     # Woodpecker server logs
+just logs-agent      # Woodpecker agent logs
+
+# === CLEANUP ===
+just clean           # Remove containers/networks
+just clean-all       # Also remove volumes (destructive)
+just nuclear         # Full reset with config backup
 ```
 
 ## Setup Flow
 
-1. `just init` then `just secret` - create .env with generated agent secret
-2. `just wizard` or edit `config/setup.toml` to define users, orgs, teams (optional)
-3. `just up` - start stack
-4. `just bootstrap` - initialize Gitea and create OAuth app automatically
-5. Add OAuth credentials to `.env`, run `just restart`
-6. `just setup` - provision users/orgs from config (optional)
-7. `just demo` - create demo repository to test CI (optional)
+**Recommended:** `just quickstart` (fully automated)
+
+**Or step-by-step:**
+1. `just step1-init` - create .env and config/setup.toml
+2. `just step2-secrets` - generate agent secret
+3. `just step3-start` - start stack
+4. `just step4-configure` - initialize Gitea + create OAuth app
+5. `just restart` - apply OAuth credentials
+6. `just step5-demo` - create demo repository (optional)
+7. `just step6-apply` - provision users/orgs from config (optional)
 8. Visit `http://ci.localhost`, login via Gitea, activate repos
 
 ## Project Structure

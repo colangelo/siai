@@ -4,12 +4,19 @@ Local POC stack: Gitea + Woodpecker CI, fronted by Traefik (or Caddy if you pref
 
 ## Quick Start
 
+**Fully automated** (recommended):
 ```bash
-just init           # Create .env and config/setup.toml from examples
-just secret         # Generate WOODPECKER_AGENT_SECRET (add to .env)
-just up             # Start all services
-just bootstrap      # Initialize Gitea + create OAuth app
-just restart        # Apply OAuth credentials
+just quickstart     # Does everything automatically
+```
+
+**Or step-by-step**:
+```bash
+just step1-init      # Create .env and config/setup.toml from examples
+just step2-secrets   # Generate WOODPECKER_AGENT_SECRET
+just step3-start     # Start all services
+just step4-configure # Initialize Gitea + create OAuth app
+just restart         # Apply OAuth credentials
+just step5-demo      # Create demo repository (optional)
 ```
 
 Then visit:
@@ -76,20 +83,35 @@ just setup-dry-run      # Preview changes without applying
 
 ## Commands
 
+### Setup (run in order, or use `just quickstart`)
+
 | Command | Description |
 |---------|-------------|
-| `just init` | Initialize .env and config files |
-| `just wizard` | Interactive setup wizard |
+| `just quickstart` | 🚀 Fully automated setup (does everything) |
+| `just step1-init` | Initialize .env and config files |
+| `just step2-secrets` | Generate agent secret |
+| `just step3-start` | Start all services |
+| `just step4-configure` | Initialize Gitea + create OAuth app |
+| `just step5-demo` | Create demo repository (optional) |
+| `just step6-apply` | Provision users/orgs from config/setup.toml (optional) |
+
+### Stack Management
+
+| Command | Description |
+|---------|-------------|
 | `just up` | Start all services |
 | `just down` | Stop all services |
 | `just restart` | Restart after .env changes |
-| `just bootstrap` | Initialize Gitea + create OAuth app |
-| `just setup` | Provision users/orgs from config/setup.toml |
-| `just setup-dry-run` | Preview setup changes |
-| `just demo` | Create demo repository with CI pipeline |
-| `just demo-dry-run` | Preview demo creation |
-| `just health` | Show service status and endpoints |
+| `just status` | Show service status |
+| `just health` | Status + endpoint URLs |
 | `just logs` | Follow all service logs |
+
+### Tools
+
+| Command | Description |
+|---------|-------------|
+| `just wizard` | Interactive setup wizard |
+| `just nuclear` | Full reset with config backup |
 | `just clean-all` | Remove everything (destructive) |
 
 ## Caddy Alternative
