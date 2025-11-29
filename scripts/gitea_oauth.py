@@ -52,11 +52,17 @@ def get_woodpecker_env(var_name: str) -> str | None:
 def restart_woodpecker() -> bool:
     """Restart Woodpecker server and agent to pick up new OAuth credentials."""
     try:
+        # Remove env vars that might override .env file
+        env = os.environ.copy()
+        for key in ["WOODPECKER_GITEA_CLIENT", "WOODPECKER_GITEA_SECRET", "WOODPECKER_AGENT_SECRET"]:
+            env.pop(key, None)
+
         result = subprocess.run(
             ["docker", "compose", "up", "-d", "--force-recreate", "wpk-server", "wpk-agent"],
             capture_output=True,
             text=True,
             timeout=60,
+            env=env,
         )
         return result.returncode == 0
     except (subprocess.TimeoutExpired, FileNotFoundError):

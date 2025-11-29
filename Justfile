@@ -160,8 +160,10 @@ bootstrap:
 
 # === Stack Management ===
 
-# Start all services
+# Start all services (unset env vars to ensure .env is used)
 up:
+    #!/usr/bin/env bash
+    unset WOODPECKER_GITEA_CLIENT WOODPECKER_GITEA_SECRET WOODPECKER_AGENT_SECRET 2>/dev/null || true
     docker compose up -d
 
 # Stop all services
@@ -170,6 +172,8 @@ down:
 
 # Restart all services (use after .env changes)
 restart:
+    #!/usr/bin/env bash
+    unset WOODPECKER_GITEA_CLIENT WOODPECKER_GITEA_SECRET WOODPECKER_AGENT_SECRET 2>/dev/null || true
     docker compose up -d --force-recreate
 
 # Show service status
