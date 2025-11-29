@@ -233,6 +233,28 @@ Features:
 
 ---
 
+## v0.3.5 - Justfile Recipe Naming Overhaul ✅
+
+### Goals
+
+- Improve discoverability and consistency of Justfile commands
+- Make setup flow explicit with numbered steps
+- Clearly separate docker commands from setup commands
+
+### Changes
+
+- **Numbered setup steps**: `step1-init`, `step2-secrets`, `step3-start`, `step4-configure`, `step5-demo`, `step6-apply`
+- **Quickstart super-recipe**: `just quickstart` runs all setup steps automatically
+- **Docker prefix**: All docker commands now start with `docker-`:
+  - `docker-up`, `docker-down`, `docker-restart`
+  - `docker-status`, `docker-health`
+  - `docker-logs`, `docker-logs-gitea`, `docker-logs-server`, `docker-logs-agent`
+  - `docker-clean`, `docker-clean-all`
+- **Standalone commands**: `nuclear`, `wizard`, `oauth-help`, `open-gitea`, `open-ci`
+- **No aliases**: Removed all legacy aliases for cleaner output
+
+---
+
 ## v0.4.0 - Identity Provider Integration
 
 ### Goals

@@ -44,7 +44,7 @@ quickstart:
 
     # Restart to apply OAuth
     echo "Restarting to apply OAuth credentials..."
-    just restart
+    just docker-restart
     sleep 5
     echo ""
 
@@ -207,66 +207,66 @@ oauth-help:
     @echo "   - Redirect URI: http://ci.localhost/authorize"
     @echo "4. Copy Client ID → WOODPECKER_GITEA_CLIENT in .env"
     @echo "5. Copy Client Secret → WOODPECKER_GITEA_SECRET in .env"
-    @echo "6. Run 'just restart'"
+    @echo "6. Run 'just docker-restart'"
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STACK MANAGEMENT
+# DOCKER - Stack Management
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Start all services (alias for 3-start)
-up:
+# Start all services
+docker-up:
     #!/usr/bin/env bash
     unset WOODPECKER_GITEA_CLIENT WOODPECKER_GITEA_SECRET WOODPECKER_AGENT_SECRET 2>/dev/null || true
     docker compose up -d
 
 # Stop all services
-down:
+docker-down:
     docker compose down
 
 # Restart all services (use after .env changes)
-restart:
+docker-restart:
     #!/usr/bin/env bash
     unset WOODPECKER_GITEA_CLIENT WOODPECKER_GITEA_SECRET WOODPECKER_AGENT_SECRET 2>/dev/null || true
     docker compose up -d --force-recreate
 
 # Show service status
-status:
+docker-status:
     docker compose ps
 
 # ══════════════════════════════════════════════════════════════════════════════
-# LOGS
+# DOCKER - Logs
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Follow logs for all services
-logs:
+docker-logs:
     docker compose logs -f
 
 # Follow logs for a specific service
-logs-service service:
+docker-logs-service service:
     docker compose logs -f {{ service }}
 
 # Follow Gitea logs
-logs-gitea:
+docker-logs-gitea:
     docker compose logs -f gitea
 
 # Follow Woodpecker server logs
-logs-server:
+docker-logs-server:
     docker compose logs -f wpk-server
 
 # Follow Woodpecker agent logs
-logs-agent:
+docker-logs-agent:
     docker compose logs -f wpk-agent
 
 # Follow Traefik logs
-logs-traefik:
+docker-logs-traefik:
     docker compose logs -f traefik
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HEALTH & DEBUG
+# DOCKER - Health & Debug
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Check if services are healthy
-health:
+docker-health:
     @echo "=== Service Status ==="
     @docker compose ps --format "table {{{{.Name}}}}\t{{{{.Status}}}}\t{{{{.Ports}}}}"
     @echo ""
@@ -275,23 +275,23 @@ health:
     @echo "Woodpecker: http://ci.localhost"
 
 # Show Woodpecker server health endpoint
-health-woodpecker:
+docker-health-woodpecker:
     @curl -s http://ci.localhost/healthz && echo " - Woodpecker OK" || echo "Woodpecker not responding"
 
 # Shell into a running container
-shell service:
+docker-shell service:
     docker compose exec {{ service }} sh
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CLEANUP
+# DOCKER - Cleanup
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Stop and remove containers, networks
-clean:
+docker-clean:
     docker compose down
 
 # Stop, remove containers, networks, AND volumes (destructive!)
-clean-all:
+docker-clean-all:
     @echo "This will delete all data (Gitea repos, Woodpecker DB)!"
     @read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] && docker compose down -v || echo "Aborted"
 
@@ -356,30 +356,3 @@ open-gitea:
 open-ci:
     xdg-open http://ci.localhost
 
-# ══════════════════════════════════════════════════════════════════════════════
-# LEGACY ALIASES (for backwards compatibility)
-# ══════════════════════════════════════════════════════════════════════════════
-
-# Alias: init → step1-init
-init: step1-init
-
-# Alias: secret → step2-secrets
-secret: step2-secrets
-
-# Alias: bootstrap → step4-configure
-bootstrap: step4-configure
-
-# Alias: setup → step6-apply
-setup: step6-apply
-
-# Alias: setup-dry-run → step6-apply-dry-run
-setup-dry-run: step6-apply-dry-run
-
-# Alias: demo → step5-demo
-demo: step5-demo
-
-# Alias: demo-dry-run → step5-demo-dry-run
-demo-dry-run: step5-demo-dry-run
-
-# Alias: demo-with-issues → step5-demo-with-issues
-demo-with-issues: step5-demo-with-issues

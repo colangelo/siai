@@ -31,7 +31,7 @@ just step2-secrets   # Generate WOODPECKER_AGENT_SECRET
 just step3-start     # Start all containers
 # Wait ~10 seconds for services to start
 just step4-configure # Initialize Gitea + create OAuth app
-just restart         # Apply OAuth credentials
+just docker-restart  # Apply OAuth credentials
 just step5-demo      # Create demo repository (optional)
 ```
 
@@ -56,14 +56,14 @@ Or edit `config/setup.toml` directly.
 ## Common Commands
 
 ```bash
-just status      # Show service status
-just health      # Status + endpoint URLs
-just logs        # Follow all logs
-just logs-gitea  # Follow Gitea logs only
+just docker-status      # Show service status
+just docker-health      # Status + endpoint URLs
+just docker-logs        # Follow all logs
+just docker-logs-gitea  # Follow Gitea logs only
 
-just restart     # Restart after .env changes
-just down        # Stop all services
-just up          # Start all services
+just docker-restart     # Restart after .env changes
+just docker-down        # Stop all services
+just docker-up          # Start all services
 ```
 
 ## Troubleshooting
@@ -71,14 +71,14 @@ just up          # Start all services
 ### Services won't start
 
 ```bash
-just logs        # Check for errors
-just status      # Check container status
+just docker-logs        # Check for errors
+just docker-status      # Check container status
 ```
 
 ### Can't login to Woodpecker
 
 1. Verify OAuth credentials in `.env` match what's in Gitea
-2. Check Woodpecker logs: `just logs-server`
+2. Check Woodpecker logs: `just docker-logs-server`
 3. Ensure redirect URI is `http://ci.localhost/authorize`
 
 ### Reset everything

@@ -45,21 +45,21 @@ just step5-demo-dry-run   # Preview demo creation
 just step6-apply-dry-run  # Preview setup changes
 
 # === STACK MANAGEMENT ===
-just up              # Start all services
-just down            # Stop all services
-just restart         # Restart after .env changes
-just status          # Show service status
-just health          # Status + endpoint URLs
+just docker-up              # Start all services
+just docker-down            # Stop all services
+just docker-restart         # Restart after .env changes
+just docker-status          # Show service status
+just docker-health          # Status + endpoint URLs
 
 # === LOGS ===
-just logs            # Follow all logs
-just logs-server     # Woodpecker server logs
-just logs-agent      # Woodpecker agent logs
+just docker-logs            # Follow all logs
+just docker-logs-server     # Woodpecker server logs
+just docker-logs-agent      # Woodpecker agent logs
 
 # === CLEANUP ===
-just clean           # Remove containers/networks
-just clean-all       # Also remove volumes (destructive)
-just nuclear         # Full reset with config backup
+just docker-clean           # Remove containers/networks
+just docker-clean-all       # Also remove volumes (destructive)
+just nuclear                # Full reset with config backup
 ```
 
 ## Setup Flow
@@ -71,7 +71,7 @@ just nuclear         # Full reset with config backup
 2. `just step2-secrets` - generate agent secret
 3. `just step3-start` - start stack
 4. `just step4-configure` - initialize Gitea + create OAuth app
-5. `just restart` - apply OAuth credentials
+5. `just docker-restart` - apply OAuth credentials
 6. `just step5-demo` - create demo repository (optional)
 7. `just step6-apply` - provision users/orgs from config (optional)
 8. Visit `http://ci.localhost`, login via Gitea, activate repos

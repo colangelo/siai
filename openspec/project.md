@@ -28,7 +28,7 @@ Local OSS CI/CD stack: **Gitea + Woodpecker CI + Traefik** - a POC/template for 
 - Configuration templates in `config/` directory
 
 ### Testing Strategy
-- Manual testing via `just health` and endpoint verification
+- Manual testing via `just docker-health` and endpoint verification
 - Scripts should support `--dry-run` mode for safe preview
 - Idempotent operations (safe to run multiple times)
 

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2025-11-29
+
+### Changed
+
+- **Justfile recipe naming overhaul** - Clear, consistent naming convention:
+  - Setup steps now numbered: `step1-init` through `step6-apply`
+  - Added `quickstart` super-recipe for fully automated setup
+  - All docker commands prefixed with `docker-`: `docker-up`, `docker-down`, `docker-restart`, `docker-logs`, `docker-status`, `docker-health`, `docker-clean`, `docker-clean-all`
+  - `nuclear` kept as standalone command (full reset)
+  - Removed all legacy aliases for cleaner `just --list` output
+- Updated all documentation to use new command names
+
 ## [0.3.4] - 2025-11-29
 
 ### Added
@@ -154,6 +166,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caddy alternative configuration (`Caddyfile.example`)
 - Basic documentation in `README.md`
 
+[0.3.5]: https://github.com/user/repo/compare/v0.3.4...v0.3.5
 [0.3.4]: https://github.com/user/repo/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/user/repo/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/user/repo/compare/v0.3.1...v0.3.2

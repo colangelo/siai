@@ -15,7 +15,7 @@ just step1-init      # Create .env and config/setup.toml from examples
 just step2-secrets   # Generate WOODPECKER_AGENT_SECRET
 just step3-start     # Start all services
 just step4-configure # Initialize Gitea + create OAuth app
-just restart         # Apply OAuth credentials
+just docker-restart  # Apply OAuth credentials
 just step5-demo      # Create demo repository (optional)
 ```
 
@@ -99,12 +99,12 @@ just setup-dry-run      # Preview changes without applying
 
 | Command | Description |
 |---------|-------------|
-| `just up` | Start all services |
-| `just down` | Stop all services |
-| `just restart` | Restart after .env changes |
-| `just status` | Show service status |
-| `just health` | Status + endpoint URLs |
-| `just logs` | Follow all service logs |
+| `just docker-up` | Start all services |
+| `just docker-down` | Stop all services |
+| `just docker-restart` | Restart after .env changes |
+| `just docker-status` | Show service status |
+| `just docker-health` | Status + endpoint URLs |
+| `just docker-logs` | Follow all service logs |
 
 ### Tools
 
@@ -112,7 +112,7 @@ just setup-dry-run      # Preview changes without applying
 |---------|-------------|
 | `just wizard` | Interactive setup wizard |
 | `just nuclear` | Full reset with config backup |
-| `just clean-all` | Remove everything (destructive) |
+| `just docker-clean-all` | Remove everything (destructive) |
 
 ## Caddy Alternative
 

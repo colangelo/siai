@@ -323,7 +323,7 @@ def main() -> None:
                         if restart_woodpecker():
                             print("✓ Woodpecker restarted with new credentials")
                         else:
-                            print("⚠ Failed to restart Woodpecker, run: just restart")
+                            print("⚠ Failed to restart Woodpecker, run: just docker-restart")
                     elif current_client == client_id:
                         pass  # Already up to date
                     # If current_client is None, Woodpecker might not be running
