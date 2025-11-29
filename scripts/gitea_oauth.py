@@ -7,10 +7,9 @@
 Gitea OAuth Script - Create OAuth2 applications for CI integration.
 
 Usage:
-    uv run scripts/gitea_oauth.py                           # Interactive
+    uv run scripts/gitea_oauth.py                           # Create and save to .env
     uv run scripts/gitea_oauth.py --name "App" --redirect "http://..."
-    uv run scripts/gitea_oauth.py --format json             # JSON output
-    uv run scripts/gitea_oauth.py --format env              # .env format
+    uv run scripts/gitea_oauth.py --format json             # JSON output (no .env write)
     uv run scripts/gitea_oauth.py --config config/setup.toml  # From config
 """
 
@@ -30,6 +29,39 @@ import httpx
 DEFAULT_CONFIG = Path("config/setup.toml")
 DEFAULT_NAME = "Woodpecker CI"
 DEFAULT_REDIRECT = "http://ci.localhost/authorize"
+ENV_FILE = Path(".env")
+
+
+def update_env_file(client_id: str, client_secret: str, prefix: str = "WOODPECKER_GITEA") -> bool:
+    """Update or append OAuth credentials in .env file."""
+    if not ENV_FILE.exists():
+        return False
+
+    content = ENV_FILE.read_text()
+    lines = content.splitlines()
+    new_lines = []
+    client_key = f"{prefix}_CLIENT"
+    secret_key = f"{prefix}_SECRET"
+    client_found = False
+    secret_found = False
+
+    for line in lines:
+        if line.startswith(f"{client_key}="):
+            new_lines.append(f"{client_key}={client_id}")
+            client_found = True
+        elif line.startswith(f"{secret_key}="):
+            new_lines.append(f"{secret_key}={client_secret}")
+            secret_found = True
+        else:
+            new_lines.append(line)
+
+    if not client_found:
+        new_lines.append(f"{client_key}={client_id}")
+    if not secret_found:
+        new_lines.append(f"{secret_key}={client_secret}")
+
+    ENV_FILE.write_text("\n".join(new_lines) + "\n")
+    return True
 
 
 def get_oauth_apps(
@@ -107,16 +139,11 @@ def format_output(
         )
     elif format_type == "env":
         return f"{prefix}_CLIENT={client_id}\n{prefix}_SECRET={client_secret}"
-    elif format_type == "shell":
-        return f"export {prefix}_CLIENT='{client_id}'\nexport {prefix}_SECRET='{client_secret}'"
     else:  # human-readable
         return (
-            f"OAuth2 Application: {app_data.get('name', '')}\n"
+            f"✓ OAuth2 app '{app_data.get('name', '')}' created\n"
             f"  Client ID:     {client_id}\n"
-            f"  Client Secret: {client_secret}\n"
-            f"\nAdd to .env:\n"
-            f"  {prefix}_CLIENT={client_id}\n"
-            f"  {prefix}_SECRET={client_secret}"
+            f"  Client Secret: {client_secret}"
         )
 
 
@@ -156,9 +183,14 @@ def main() -> None:
     parser.add_argument(
         "--format",
         "-f",
-        choices=["human", "json", "env", "shell"],
+        choices=["human", "json", "env"],
         default="human",
-        help="Output format (default: human)",
+        help="Output format (default: human, writes to .env)",
+    )
+    parser.add_argument(
+        "--no-env",
+        action="store_true",
+        help="Don't update .env file (just print credentials)",
     )
     parser.add_argument(
         "--url",
@@ -234,8 +266,27 @@ def main() -> None:
 
         if app_data:
             print(format_output(app_data, args.format))
-        else:
-            sys.exit(1)
+
+            # Write to .env unless --no-env or non-human format
+            if args.format == "human" and not args.no_env:
+                client_id = app_data.get("client_id", "")
+                client_secret = app_data.get("client_secret", "")
+                if update_env_file(client_id, client_secret):
+                    print("✓ Updated .env with OAuth credentials")
+                else:
+                    print("⚠ Could not update .env (file not found)")
+
+    # Show next steps for human format
+    if args.format == "human":
+        print()
+        print("Next steps:")
+        print("  1. just restart    # Apply OAuth config")
+        print("  2. just wizard     # Configure users/orgs (optional)")
+        print("  3. just setup      # Apply provisioning (optional)")
+        print()
+        print("Then visit:")
+        print("  http://gitea.localhost   - Git server")
+        print("  http://ci.localhost      - CI (login via Gitea)")
 
 
 if __name__ == "__main__":
