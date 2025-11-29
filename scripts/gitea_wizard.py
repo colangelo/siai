@@ -14,15 +14,25 @@ Usage:
 from __future__ import annotations
 
 import os
+import secrets
+import string
 import sys
 from pathlib import Path
 from typing import Any
 
 import tomli_w
+
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
+
+
+def generate_safe_password(length: int = 24) -> str:
+    """Generate a safe password with only alphanumeric characters."""
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 console = Console()
 
@@ -132,8 +142,10 @@ def prompt_admin_update(current_admin: dict[str, str]) -> dict[str, Any] | None:
 
     if Confirm.ask("    Change password?", default=False):
         update["change_password"] = True
-        console.print("    [yellow]→[/yellow] Will prompt for new password during setup")
-        console.print("    [dim]    (Set NEW_ADMIN_PASSWORD env var before running 'just setup')[/dim]")
+        new_password = generate_safe_password(24)
+        update["generated_password"] = new_password
+        console.print(f"    [yellow]→[/yellow] Generated new password: [cyan]{new_password}[/cyan]")
+        console.print("    [dim]    (Will be saved to .env as NEW_GITEA_ADMIN_PASSWORD)[/dim]")
 
     if not update:
         console.print("    [dim]No changes to admin profile.[/dim]")
@@ -359,7 +371,10 @@ def build_toml_config(config: dict[str, Any]) -> dict[str, Any]:
     }
 
     if config.get("admin_update"):
-        toml_config["admin_update"] = config["admin_update"]
+        # Don't include generated_password in TOML (it goes to .env)
+        admin_update = {k: v for k, v in config["admin_update"].items() if k != "generated_password"}
+        if admin_update:
+            toml_config["admin_update"] = admin_update
 
     if config.get("organization"):
         org = config["organization"]
@@ -379,6 +394,30 @@ def build_toml_config(config: dict[str, Any]) -> dict[str, Any]:
         toml_config["oauth_apps"] = config["oauth_apps"]
 
     return toml_config
+
+
+def update_env_file(key: str, value: str) -> bool:
+    """Update or append a key in .env file."""
+    if not ENV_PATH.exists():
+        return False
+
+    content = ENV_PATH.read_text()
+    lines = content.splitlines()
+    new_lines = []
+    found = False
+
+    for line in lines:
+        if line.startswith(f"{key}="):
+            new_lines.append(f"{key}={value}")
+            found = True
+        else:
+            new_lines.append(line)
+
+    if not found:
+        new_lines.append(f"{key}={value}")
+
+    ENV_PATH.write_text("\n".join(new_lines) + "\n")
+    return True
 
 
 def write_config(config: dict[str, Any]) -> bool:
@@ -447,18 +486,21 @@ def main() -> None:
     if write_config(config):
         console.print()
 
+        # Save generated password to .env if present
+        admin_update = config.get("admin_update", {})
+        generated_password = admin_update.get("generated_password")
+        if generated_password:
+            if update_env_file("NEW_GITEA_ADMIN_PASSWORD", generated_password):
+                console.print("[green]✓[/green] Saved NEW_GITEA_ADMIN_PASSWORD to .env")
+            else:
+                console.print("[yellow]⚠[/yellow] Could not save password to .env")
+
         # Build next steps based on config
         next_steps = "Next steps:\n"
         next_steps += "  1. Ensure [cyan]GITEA_ADMIN_PASSWORD[/cyan] is set in .env\n"
         next_steps += "     [dim](default: admin123, set by 'just init')[/dim]\n"
-
-        if config.get("admin_update", {}).get("change_password"):
-            next_steps += "  2. Set [cyan]NEW_ADMIN_PASSWORD[/cyan] in .env for new password\n"
-            next_steps += "  3. Run [cyan]just setup-dry-run[/cyan] to preview\n"
-            next_steps += "  4. Run [cyan]just setup[/cyan] to apply"
-        else:
-            next_steps += "  2. Run [cyan]just setup-dry-run[/cyan] to preview\n"
-            next_steps += "  3. Run [cyan]just setup[/cyan] to apply"
+        next_steps += "  2. Run [cyan]just setup-dry-run[/cyan] to preview\n"
+        next_steps += "  3. Run [cyan]just setup[/cyan] to apply"
 
         console.print(
             Panel.fit(
