@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2025-11-29
+
+### Added
+
+- **`just nuclear`** - Full stack reset with config backups (☢️ emoji in help)
+- **`QUICKSTART.md`** - Step-by-step bootstrap guide for new users
+- **Safe password generator** in wizard (24-char alphanumeric, no special chars)
+- Auto-save `WOODPECKER_AGENT_SECRET` to `.env` via `just secret`
+- Auto-save OAuth credentials to `.env` via `just bootstrap`
+- Auto-save generated admin password to `.env` via wizard
+- Next steps guidance after `just bootstrap` and `just gitea-oauth`
+
+### Changed
+
+- Renamed `NEW_ADMIN_PASSWORD` to `NEW_GITEA_ADMIN_PASSWORD` for clarity
+- Admin rename now uses correct Gitea API (`POST /admin/users/{username}/rename`)
+- Setup scripts now export all env vars with `set -a`
+- Wizard generates password automatically when "change password" is selected
+
+### Fixed
+
+- Admin rename failing silently (was using wrong API endpoint)
+- Email/password update failing with 422 (missing required `login_name` field)
+- Client credentials not updated after admin rename (caused 401 errors)
+- Passwords with special chars causing shell escaping issues
+- `just setup` not reading `NEW_GITEA_ADMIN_PASSWORD` from `.env`
+
+## [0.3.1] - 2025-11-29
+
+### Added
+
+- **Interactive setup wizard** (`just wizard`) using Rich library
+- Admin profile update support (rename, change email/password)
+- Wizard loads defaults from `.env` file
+
 ## [0.3.0] - 2025-11-29
 
 ### Added

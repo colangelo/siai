@@ -2,7 +2,7 @@
 
 This document outlines the planned development phases for the CI/CD stack.
 
-## v0.3.0 - Python Automation & Project Structure
+## v0.3.0 - Python Automation & Project Structure ✅
 
 ### Goals
 
@@ -123,7 +123,7 @@ Features:
 
 ---
 
-## v0.3.1 - Interactive Setup Wizard
+## v0.3.1 - Interactive Setup Wizard ✅
 
 ### Goals
 
@@ -148,6 +148,35 @@ Features:
 
 - `scripts/gitea_wizard.py` - Interactive wizard using Rich + tomli-w
 - `just wizard` - Run the setup wizard
+
+---
+
+## v0.3.2 - Bootstrap UX & Bug Fixes ✅
+
+### Goals
+
+- Streamline bootstrap experience with auto-save to `.env`
+- Fix admin rename and password change issues
+- Add nuclear reset for fresh start testing
+
+### Features
+
+- **`just nuclear`** - Full stack reset with timestamped config backups
+- **`QUICKSTART.md`** - Step-by-step guide for new users
+- **Auto-save credentials** - Agent secret, OAuth, and generated passwords saved to `.env` automatically
+- **Safe password generation** - 24-char alphanumeric passwords (no shell-problematic chars)
+- **Next steps guidance** - Clear instructions after each bootstrap step
+
+### Bug Fixes
+
+- Admin rename now uses correct Gitea API endpoint (`POST /admin/users/{username}/rename`)
+- Email/password PATCH includes required `login_name` field
+- Client credentials updated after admin rename to prevent 401 errors
+- Setup scripts export all env vars with `set -a`
+
+### Breaking Changes
+
+- `NEW_ADMIN_PASSWORD` renamed to `NEW_GITEA_ADMIN_PASSWORD`
 
 ---
 
