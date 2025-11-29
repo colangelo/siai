@@ -2,7 +2,8 @@
 
 services:
   traefik:
-    image: traefik:v3.1
+    image: traefik:v3
+    container_name: ci-traefik
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
@@ -11,19 +12,50 @@ services:
     ports:
       - "80:80"
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - devnet
+
+  postgres:
+    image: postgres:18
+    container_name: ci-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      # Default DB created on init
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+    volumes:
+      # PostgreSQL 18+ stores data in version-specific subdirectory
+      - postgres-data:/var/lib/postgresql
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - devnet
 
   gitea:
-    image: gitea/gitea:1.22
+    image: gitea/gitea:latest-rootless
     container_name: gitea
     restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       - GITEA__server__ROOT_URL=${GITEA_EXTERNAL_URL}
       - GITEA__server__DOMAIN=gitea.localhost
       - GITEA__server__SSH_DOMAIN=gitea.localhost
       - GITEA__webhook__ALLOWED_HOST_LIST=external,loopback
+      # Database configuration
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=postgres:5432
+      - GITEA__database__NAME=gitea
+      - GITEA__database__USER=${POSTGRES_USER:-postgres}
+      - GITEA__database__PASSWD=${POSTGRES_PASSWORD:-postgres}
     volumes:
       - gitea-data:/data
     labels:
@@ -34,22 +66,21 @@ services:
     networks:
       - devnet
 
-  woodpecker-server:
+  wpk-server:
     image: woodpeckerci/woodpecker-server:v3
-    container_name: woodpecker-server
+    container_name: wpk-server
     restart: always
     depends_on:
-      - gitea
+      postgres:
+        condition: service_healthy
+      gitea:
+        condition: service_started
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "wget -q --spider http://localhost:8000/healthz || exit 1",
-        ]
+      test: ["CMD", "/bin/woodpecker-server", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 10s
     environment:
       # General
       - WOODPECKER_OPEN=true
@@ -58,37 +89,35 @@ services:
       # HTTP / gRPC addresses (inside container)
       - WOODPECKER_SERVER_ADDR=:8000
       - WOODPECKER_GRPC_ADDR=:9000
+      # Database configuration
+      - WOODPECKER_DATABASE_DRIVER=postgres
+      - WOODPECKER_DATABASE_DATASOURCE=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/woodpecker?sslmode=disable
       # Gitea integration
       - WOODPECKER_GITEA=true
       - WOODPECKER_GITEA_URL=${GITEA_EXTERNAL_URL}
       - WOODPECKER_GITEA_CLIENT=${WOODPECKER_GITEA_CLIENT}
       - WOODPECKER_GITEA_SECRET=${WOODPECKER_GITEA_SECRET}
-    volumes:
-      - woodpecker-server-data:/var/lib/woodpecker/
     labels:
       - "traefik.enable=true"
       # Web UI / HTTP API
       - "traefik.http.routers.woodpecker.rule=Host(`ci.localhost`)"
       - "traefik.http.routers.woodpecker.entrypoints=web"
       - "traefik.http.services.woodpecker.loadbalancer.server.port=8000"
-      # If you later want Traefik to front gRPC for remote agents:
-      # - "traefik.http.services.woodpecker-grpc.loadbalancer.server.port=9000"
-      # - "traefik.http.services.woodpecker-grpc.loadbalancer.server.scheme=h2c"
     networks:
       - devnet
 
-  woodpecker-agent:
+  wpk-agent:
     image: woodpeckerci/woodpecker-agent:v3
-    container_name: woodpecker-agent
+    container_name: wpk-agent
     restart: always
     depends_on:
-      woodpecker-server:
+      wpk-server:
         condition: service_healthy
     environment:
-      - WOODPECKER_SERVER=woodpecker-server:9000
+      - WOODPECKER_SERVER=wpk-server:9000
       - WOODPECKER_AGENT_SECRET=${WOODPECKER_AGENT_SECRET}
       # Make agent use same Docker network as Gitea so clone URLs just work
-      - WOODPECKER_BACKEND_DOCKER_NETWORK=devnet
+      - WOODPECKER_BACKEND_DOCKER_NETWORK=siai-sidi_devnet
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
@@ -98,5 +127,5 @@ networks:
   devnet:
 
 volumes:
+  postgres-data:
   gitea-data:
-  woodpecker-server-data:
