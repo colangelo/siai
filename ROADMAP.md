@@ -512,6 +512,178 @@ just auth-apply            # Apply auth configuration from config/auth.toml
 
 ---
 
+## v0.7.0 - Gitea CI Integration Plugin
+
+### Goals
+
+- Build a Gitea plugin to display Woodpecker CI pipelines directly in Gitea UI
+- Provide unified view of code and CI status without switching tools
+- Bridge the UX gap between Gitea and integrated CI providers like GitLab
+
+### Why This Matters
+
+Currently, users must switch between Gitea and Woodpecker UIs to see CI status. GitLab provides an integrated experience where pipelines, jobs, and logs are visible directly in the repository view. This plugin brings similar capabilities to Gitea + Woodpecker.
+
+### Planned Features
+
+**Phase 1: Pipeline Status Display**
+- Show pipeline status badges on commit list
+- Pipeline status on pull request pages
+- Quick links to Woodpecker for full details
+
+**Phase 2: Inline Pipeline View**
+- Embedded pipeline visualization in Gitea UI
+- Job status with expandable logs
+- Re-run pipelines from Gitea interface
+
+**Phase 3: Advanced Integration**
+- Pre-step and post-step UI segments (currently missing in Woodpecker)
+- Problem matchers for inline error highlighting
+- Annotations on code (like GitLab's inline CI feedback)
+
+### Technical Approach
+
+1. **Gitea Plugin API** - Use Gitea's plugin/extension mechanism
+2. **Woodpecker API Integration** - Query Woodpecker API for pipeline data
+3. **WebSocket for Live Updates** - Real-time status updates
+4. **Shared Authentication** - Use existing OAuth for seamless access
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Gitea UI                                │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  Repository View                                     │    │
+│  │  ├── Commits (with pipeline badges)                  │    │
+│  │  ├── Pull Requests (with CI status)                  │    │
+│  │  └── CI/CD Tab ◄─────── NEW: Plugin adds this        │    │
+│  │      ├── Pipeline History                            │    │
+│  │      ├── Job Details + Logs                          │    │
+│  │      └── Problem Annotations                         │    │
+│  └─────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │  Woodpecker API │
+                    │  (pipelines,    │
+                    │   jobs, logs)   │
+                    └─────────────────┘
+```
+
+### New Files
+
+- `plugins/gitea-woodpecker/` - Plugin source code
+- `plugins/gitea-woodpecker/README.md` - Plugin documentation
+- `scripts/plugin_install.py` - Plugin installation automation
+
+---
+
+## v0.8.0 - Woodpecker Actions Protocol Enhancements
+
+### Goals
+
+- Implement missing Gitea Actions protocol features in Woodpecker
+- Achieve feature parity with GitLab CI/CD experience
+- Contribute enhancements upstream to Woodpecker project
+
+### Missing Features (vs GitLab)
+
+| Feature | GitLab | Woodpecker | Priority |
+|---------|--------|------------|----------|
+| **Pre/Post Steps UI** | ✓ Dedicated segments | ✗ Flat step list | High |
+| **Problem Matchers** | ✓ Inline annotations | ✗ Not supported | High |
+| **Inline Error Highlighting** | ✓ Code annotations | ✗ Not supported | High |
+| **Collapsible Log Sections** | ✓ `section_start/end` | Partial | Medium |
+| **Job Artifacts Browser** | ✓ In-UI browsing | ✗ Download only | Medium |
+| **DAG Visualization** | ✓ Pipeline graph | ✗ Linear display | Low |
+| **Manual Variables** | ✓ UI input on trigger | Partial | Medium |
+| **Environments/Deployments** | ✓ Dedicated UI | ✗ Not supported | Low |
+
+### Implementation Plan
+
+**Phase 1: UI/UX Improvements**
+
+1. **Pre/Post Step Visualization**
+   - Modify Woodpecker UI to show `before_script` and `after_script` as distinct segments
+   - Visual distinction (icons, colors) for setup vs main vs teardown phases
+   - Collapse/expand individual phases
+
+2. **Problem Matchers**
+   - Parse compiler/linter output using regex patterns
+   - Extract file, line, column, severity, message
+   - Store annotations in database
+   - API endpoint to retrieve annotations per build
+
+3. **Inline Error Highlighting**
+   - Integrate with Gitea diff view (via plugin from v0.7.0)
+   - Show annotations as inline comments on PR diffs
+   - Link annotations to specific log lines
+
+**Phase 2: Log Enhancements**
+
+4. **Collapsible Log Sections**
+   - Support `::group::` and `::endgroup::` markers (GitHub Actions style)
+   - Or `section_start`/`section_end` (GitLab style)
+   - Persist collapse state in UI
+
+5. **ANSI Color Rendering**
+   - Improved terminal color support
+   - Proper handling of 256-color and truecolor output
+
+**Phase 3: Advanced Features**
+
+6. **Artifact Browser**
+   - In-UI file browser for build artifacts
+   - Preview for text, images, HTML reports
+   - Direct links to specific artifact files
+
+7. **Pipeline Graph View**
+   - Visual DAG representation of job dependencies
+   - Click-to-navigate to job details
+   - Real-time status updates on graph nodes
+
+### Problem Matcher Specification
+
+```yaml
+# .woodpecker/problem-matchers.yaml
+matchers:
+  - name: python-pytest
+    pattern:
+      - regexp: '^(.+):(\d+): (error|warning): (.+)$'
+        file: 1
+        line: 2
+        severity: 3
+        message: 4
+
+  - name: eslint
+    pattern:
+      - regexp: '^\s+(\d+):(\d+)\s+(error|warning)\s+(.+?)\s+(\S+)$'
+        line: 1
+        column: 2
+        severity: 3
+        message: 4
+        code: 5
+```
+
+### Technical Considerations
+
+- Changes may require Woodpecker core modifications (upstream PRs)
+- Some features can be implemented as UI-only changes
+- Plugin architecture may allow some features without core changes
+- Consider backward compatibility with existing pipelines
+
+### Contribution Strategy
+
+1. Fork Woodpecker for experimental features
+2. Create RFC/proposal for upstream discussion
+3. Implement features incrementally
+4. Submit PRs with comprehensive tests
+5. Maintain fork until features are merged
+
+---
+
 ## Future Considerations
 
 ### Potential Additions
@@ -539,4 +711,4 @@ When implementing roadmap items:
 
 ---
 
-*Last updated: 2025-11-29*
+*Last updated: 2025-12-01*
