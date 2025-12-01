@@ -570,7 +570,7 @@ just watchtower-logs      # View Watchtower logs
 
 ---
 
-## v0.7.0 - Gitea CI Integration Plugin
+## v0.7.0 - Gitea CI Display Plugin for Woodpecker
 
 ### Goals
 
@@ -595,7 +595,7 @@ Currently, users must switch between Gitea and Woodpecker UIs to see CI status. 
 - Re-run pipelines from Gitea interface
 
 **Phase 3: Advanced Integration**
-- Pre-step and post-step UI segments (currently missing in Woodpecker)
+- Pre-step and post-step UI segments
 - Problem matchers for inline error highlighting
 - Annotations on code (like GitLab's inline CI feedback)
 
@@ -638,107 +638,130 @@ Currently, users must switch between Gitea and Woodpecker UIs to see CI status. 
 
 ---
 
-## v0.8.0 - Woodpecker Actions Protocol Enhancements
+## v0.8.0 - Gitea CI UI Enhancements (Upstream Contributions)
 
 ### Goals
 
-- Implement missing Gitea Actions protocol features in Woodpecker
-- Achieve feature parity with GitLab CI/CD experience
-- Contribute enhancements upstream to Woodpecker project
+- Enhance Gitea's UI to display rich CI pipeline states from external CI systems
+- Add missing UI features that GitLab has for displaying pipeline information
+- Contribute enhancements upstream to Gitea project
 
-### Missing Features (vs GitLab)
+### Context: Gitea Actions Limitations
 
-| Feature | GitLab | Woodpecker | Priority |
-|---------|--------|------------|----------|
-| **Pre/Post Steps UI** | ✓ Dedicated segments | ✗ Flat step list | High |
+Gitea Actions is still young compared to GitHub Actions or GitLab CI. Current limitations:
+
+| Category | What's Missing |
+|----------|----------------|
+| **UI/UX** | Pre/post steps don't get special UI segments |
+| **Annotations** | Problem matchers not supported (no inline error highlighting) |
+| **Visualization** | No pipeline DAG view, limited job dependency display |
+| **Logs** | Basic log rendering, no collapsible sections |
+| **Artifacts** | Download only, no in-UI browser/preview |
+
+These limitations affect **any external CI** (like Woodpecker) that reports status to Gitea, not just Gitea Actions.
+
+### Missing UI Features (vs GitLab)
+
+| Feature | GitLab | Gitea | Priority |
+|---------|--------|-------|----------|
+| **Pre/Post Steps UI** | ✓ Dedicated segments | ✗ Flat display | High |
 | **Problem Matchers** | ✓ Inline annotations | ✗ Not supported | High |
-| **Inline Error Highlighting** | ✓ Code annotations | ✗ Not supported | High |
-| **Collapsible Log Sections** | ✓ `section_start/end` | Partial | Medium |
+| **Inline Error Highlighting** | ✓ Code annotations on diffs | ✗ Not supported | High |
+| **Collapsible Log Sections** | ✓ `section_start/end` | ✗ Basic logs | Medium |
 | **Job Artifacts Browser** | ✓ In-UI browsing | ✗ Download only | Medium |
-| **DAG Visualization** | ✓ Pipeline graph | ✗ Linear display | Low |
-| **Manual Variables** | ✓ UI input on trigger | Partial | Medium |
-| **Environments/Deployments** | ✓ Dedicated UI | ✗ Not supported | Low |
+| **Pipeline DAG View** | ✓ Visual graph | ✗ Linear list | Medium |
+| **Environments/Deployments UI** | ✓ Dedicated view | ✗ Not supported | Low |
 
 ### Implementation Plan
 
-**Phase 1: UI/UX Improvements**
+**Phase 1: Annotations & Problem Matchers**
 
-1. **Pre/Post Step Visualization**
-   - Modify Woodpecker UI to show `before_script` and `after_script` as distinct segments
-   - Visual distinction (icons, colors) for setup vs main vs teardown phases
-   - Collapse/expand individual phases
+Extend Gitea's commit status API and UI to support annotations:
 
-2. **Problem Matchers**
-   - Parse compiler/linter output using regex patterns
-   - Extract file, line, column, severity, message
-   - Store annotations in database
-   - API endpoint to retrieve annotations per build
-
-3. **Inline Error Highlighting**
-   - Integrate with Gitea diff view (via plugin from v0.7.0)
-   - Show annotations as inline comments on PR diffs
-   - Link annotations to specific log lines
-
-**Phase 2: Log Enhancements**
-
-4. **Collapsible Log Sections**
-   - Support `::group::` and `::endgroup::` markers (GitHub Actions style)
-   - Or `section_start`/`section_end` (GitLab style)
-   - Persist collapse state in UI
-
-5. **ANSI Color Rendering**
-   - Improved terminal color support
-   - Proper handling of 256-color and truecolor output
-
-**Phase 3: Advanced Features**
-
-6. **Artifact Browser**
-   - In-UI file browser for build artifacts
-   - Preview for text, images, HTML reports
-   - Direct links to specific artifact files
-
-7. **Pipeline Graph View**
-   - Visual DAG representation of job dependencies
-   - Click-to-navigate to job details
-   - Real-time status updates on graph nodes
-
-### Problem Matcher Specification
-
-```yaml
-# .woodpecker/problem-matchers.yaml
-matchers:
-  - name: python-pytest
-    pattern:
-      - regexp: '^(.+):(\d+): (error|warning): (.+)$'
-        file: 1
-        line: 2
-        severity: 3
-        message: 4
-
-  - name: eslint
-    pattern:
-      - regexp: '^\s+(\d+):(\d+)\s+(error|warning)\s+(.+?)\s+(\S+)$'
-        line: 1
-        column: 2
-        severity: 3
-        message: 4
-        code: 5
+```go
+// New annotation model for Gitea
+type CommitStatusAnnotation struct {
+    Path       string `json:"path"`        // File path
+    Line       int    `json:"line"`        // Line number
+    Column     int    `json:"column"`      // Column (optional)
+    Severity   string `json:"severity"`    // error, warning, notice
+    Message    string `json:"message"`     // Annotation text
+    RawDetails string `json:"raw_details"` // Link to log line
+}
 ```
 
-### Technical Considerations
+- Add API endpoint: `POST /repos/{owner}/{repo}/statuses/{sha}/annotations`
+- Display annotations inline on PR diff view
+- Link annotations to CI log lines
 
-- Changes may require Woodpecker core modifications (upstream PRs)
-- Some features can be implemented as UI-only changes
-- Plugin architecture may allow some features without core changes
-- Consider backward compatibility with existing pipelines
+**Phase 2: Enhanced Log Display**
+
+Improve how Gitea displays CI logs (applicable to Actions and external CI):
+
+1. **Collapsible Sections**
+   - Parse `::group::name` / `::endgroup::` markers
+   - Or GitLab-style `section_start` / `section_end`
+   - Persist collapse state per user
+
+2. **ANSI Color Rendering**
+   - Full 256-color and truecolor support
+   - Proper handling of cursor controls
+
+3. **Pre/Post Step Visualization**
+   - Visual distinction for setup, main, and teardown phases
+   - Collapse/expand individual phases
+
+**Phase 3: Pipeline Visualization**
+
+1. **DAG View**
+   - Visual graph of job dependencies
+   - Real-time status updates on nodes
+   - Click to navigate to job details
+
+2. **Artifact Browser**
+   - In-UI file tree for artifacts
+   - Preview for text, images, HTML reports
+   - Direct links to specific files
+
+### API Extensions for External CI
+
+To allow Woodpecker (or any CI) to provide rich data to Gitea:
+
+```yaml
+# Extended commit status payload
+{
+  "state": "success",
+  "context": "woodpecker/build",
+  "description": "Build passed",
+  "target_url": "http://ci.localhost/...",
+
+  # NEW: Rich CI data
+  "annotations": [...],
+  "steps": [
+    {"name": "setup", "phase": "pre", "status": "success", "duration": 5},
+    {"name": "build", "phase": "main", "status": "success", "duration": 120},
+    {"name": "cleanup", "phase": "post", "status": "success", "duration": 2}
+  ],
+  "artifacts": [
+    {"name": "coverage.html", "size": 12345, "url": "..."}
+  ]
+}
+```
 
 ### Contribution Strategy
 
-1. Fork Woodpecker for experimental features
-2. Create RFC/proposal for upstream discussion
-3. Implement features incrementally
-4. Submit PRs with comprehensive tests
-5. Maintain fork until features are merged
+1. **Research Gitea Plugin/Extension API** - Understand current extensibility
+2. **Propose RFC to Gitea** - Discuss annotation API and UI enhancements
+3. **Implement as Gitea fork first** - Test with Woodpecker integration
+4. **Submit upstream PRs** - Incremental, well-tested contributions
+5. **Maintain compatibility layer** - Support older Gitea versions via plugin
+
+### Related Gitea Issues to Track
+
+- Gitea Actions feature parity with GitHub Actions
+- External CI integration improvements
+- Commit status API extensions
+- UI/UX improvements for CI display
 
 ---
 
