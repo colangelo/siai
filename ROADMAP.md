@@ -502,6 +502,7 @@ just auth-apply            # Apply auth configuration from config/auth.toml
 - Secrets management improvements
 - Backup/restore procedures
 - Health monitoring
+- Automatic container updates
 
 ### Planned Features
 
@@ -509,6 +510,63 @@ just auth-apply            # Apply auth configuration from config/auth.toml
 - `just backup` / `just restore` tasks for PostgreSQL
 - Health monitoring and alerting hooks
 - Resource limits and container hardening
+
+### Watchtower Integration
+
+Add [Watchtower](https://github.com/nicholas-fedor/watchtower) for automatic container image updates.
+
+**Why Watchtower?**
+- Automatically detects new container images in registries
+- Gracefully restarts containers with updated images
+- Maintains original deployment configuration
+- Perfect for homelab/dev environments (our target use case)
+
+**Implementation:**
+
+```yaml
+# docker-compose.yml addition
+watchtower:
+  image: ghcr.io/nicholas-fedor/watchtower:latest
+  container_name: watchtower
+  restart: unless-stopped
+  environment:
+    - WATCHTOWER_CLEANUP=true
+    - WATCHTOWER_POLL_INTERVAL=86400  # Check daily
+    - WATCHTOWER_INCLUDE_STOPPED=false
+    - WATCHTOWER_LABEL_ENABLE=true    # Only update labeled containers
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+  networks:
+    - devnet
+```
+
+**Container Labeling:**
+
+```yaml
+# Enable auto-updates per container
+labels:
+  - "com.centurylinklabs.watchtower.enable=true"
+```
+
+**Configuration Options:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WATCHTOWER_POLL_INTERVAL` | 86400 | Check interval in seconds (daily) |
+| `WATCHTOWER_CLEANUP` | true | Remove old images after update |
+| `WATCHTOWER_LABEL_ENABLE` | true | Only update labeled containers |
+| `WATCHTOWER_NOTIFICATIONS` | - | Slack/email/webhook notifications |
+| `WATCHTOWER_SCHEDULE` | - | Cron schedule for updates |
+
+**Justfile Commands:**
+
+```bash
+just watchtower-status    # Show update status
+just watchtower-run       # Force immediate update check
+just watchtower-logs      # View Watchtower logs
+```
+
+**Security Note:** Watchtower requires Docker socket access. For production, consider using Watchtower's HTTP API mode or socket proxy for additional security.
 
 ---
 
