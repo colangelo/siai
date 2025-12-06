@@ -288,7 +288,7 @@ registry-status:
         echo "Push format:    registry.localhost/<project>/<image>:<tag>"
         echo ""
         echo "=== Harbor Service Status ==="
-        docker compose -f docker-compose.yml -f docker-compose.harbor.yml ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null | grep -E "^(NAME|harbor)" || echo "Harbor services not running"
+        docker compose -f docker-compose.yml -f docker-compose.harbor.yml ps --format "table {{{{.Name}}}}\t{{{{.Status}}}}" 2>/dev/null | grep -E "^(NAME|harbor)" || echo "Harbor services not running"
         echo ""
         echo "Trivy enabled: ${HARBOR_TRIVY_ENABLED:-false}"
         echo ""
@@ -386,9 +386,9 @@ docker-health:
     [ -f .env ] && source .env
     echo "=== Service Status ==="
     if [ "${REGISTRY_BACKEND:-gitea}" = "harbor" ]; then
-        docker compose -f docker-compose.yml -f docker-compose.harbor.yml ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || docker compose ps
+        docker compose -f docker-compose.yml -f docker-compose.harbor.yml ps --format "table {{{{.Name}}}}\t{{{{.Status}}}}\t{{{{.Ports}}}}" 2>/dev/null || docker compose ps
     else
-        docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || docker compose ps
+        docker compose ps --format "table {{{{.Name}}}}\t{{{{.Status}}}}\t{{{{.Ports}}}}" 2>/dev/null || docker compose ps
     fi
     echo ""
     echo "=== Endpoints ==="
