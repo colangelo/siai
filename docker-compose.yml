@@ -3,7 +3,8 @@
 services:
   traefik:
     image: traefik:v3
-    container_name: ci-traefik
+    container_name: siai-traefik
+    restart: unless-stopped
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
@@ -20,8 +21,8 @@ services:
 
   postgres:
     image: postgres:18
-    container_name: ci-postgres
-    restart: always
+    container_name: siai-postgres
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
@@ -42,8 +43,8 @@ services:
 
   gitea:
     image: gitea/gitea:latest-rootless
-    container_name: gitea
-    restart: always
+    container_name: siai-gitea
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,8 +87,8 @@ services:
 
   wpk-server:
     image: woodpeckerci/woodpecker-server:v3
-    container_name: wpk-server
-    restart: always
+    container_name: siai-wpk-server
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,8 +132,8 @@ services:
 
   wpk-agent:
     image: woodpeckerci/woodpecker-agent:v3
-    container_name: wpk-agent
-    restart: always
+    container_name: siai-wpk-agent
+    restart: unless-stopped
     depends_on:
       wpk-server:
         condition: service_healthy

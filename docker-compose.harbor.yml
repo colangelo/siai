@@ -5,8 +5,8 @@
 services:
   harbor-core:
     image: goharbor/harbor-core:v2.11.2
-    container_name: harbor-core
-    restart: always
+    container_name: siai-harbor-core
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,8 +44,8 @@ services:
 
   harbor-portal:
     image: goharbor/harbor-portal:v2.11.2
-    container_name: harbor-portal
-    restart: always
+    container_name: siai-harbor-portal
+    restart: unless-stopped
     depends_on:
       - harbor-core
     environment:
@@ -62,8 +62,8 @@ services:
 
   harbor-registry:
     image: goharbor/registry-photon:v2.11.2
-    container_name: harbor-registry
-    restart: always
+    container_name: siai-harbor-registry
+    restart: unless-stopped
     depends_on:
       - harbor-core
     environment:
@@ -87,8 +87,8 @@ services:
 
   harbor-jobservice:
     image: goharbor/harbor-jobservice:v2.11.2
-    container_name: harbor-jobservice
-    restart: always
+    container_name: siai-harbor-jobservice
+    restart: unless-stopped
     depends_on:
       - harbor-core
     environment:
@@ -107,8 +107,8 @@ services:
 
   harbor-redis:
     image: redis:7-alpine
-    container_name: harbor-redis
-    restart: always
+    container_name: siai-harbor-redis
+    restart: unless-stopped
     volumes:
       - harbor-redis-data:/data
     networks:
@@ -117,9 +117,9 @@ services:
   # Optional: Trivy vulnerability scanner
   # Enabled when HARBOR_TRIVY_ENABLED=true
   harbor-trivy:
-    image: goharbor/trivy-adapter-photon:v2.11.2
-    container_name: harbor-trivy
-    restart: always
+    image: goharbor/trivy-adapter-photon:v2.14.1
+    container_name: siai-harbor-trivy
+    restart: unless-stopped
     profiles:
       - trivy
     environment:
