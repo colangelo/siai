@@ -67,6 +67,17 @@ The homelab deployment SHALL be governed by tailnet ACL rules that grant the dep
 - **THEN** the ACL permits the access
 - **AND** non-administrative tailnet devices do not get administrative access
 
+### Requirement: Administrator SSO via tsidp
+The homelab deployment SHALL allow administrators to authenticate to Gitea via the homelab `tsidp` OpenID Connect provider, in addition to the internal Woodpecker↔Gitea OAuth used for CI.
+
+#### Scenario: Admin logs in via tsidp OIDC
+- **WHEN** an administrator initiates Gitea login via the `tsidp` provider
+- **THEN** Gitea delegates authentication to tsidp over OIDC and grants access on success
+
+#### Scenario: CI OAuth remains independent
+- **WHEN** Woodpecker authenticates to Gitea for CI
+- **THEN** it uses the internal Woodpecker↔Gitea OAuth credentials, independent of the tsidp login source
+
 ### Requirement: Persistent Storage and Backup
 The homelab deployment SHALL persist Gitea repository data and Woodpecker state on durable storage covered by host-level backup; CI build workspaces MAY be ephemeral.
 
