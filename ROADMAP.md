@@ -376,6 +376,40 @@ just harbor-login           # Docker login to Harbor
 
 ---
 
+## v0.4.5 - First Real Consumer: Direction (Dogfood Pipeline)
+
+### Goals
+
+- Onboard **Direction** as the first real (non-demo) project built by this CI/CD stack
+- Prove the Gitea → Woodpecker → Harbor path on a production application, not just the demo repo
+- Validate the stack against a real `uv` Python app with a test suite and a multi-service image
+
+> Direction is a personal knowledge-management app (FastAPI + Next.js, `uv`-managed Python), deployed on the homelab (`px1`) as a Docker sidecar on VM 100. Its app roadmap points back here for CI: `~/_sync/Carlo/Projects/direction/ROADMAP.md` → *Infra dependencies*.
+
+### Prerequisites
+
+- **v0.4.0 Harbor** (image push target) — already deployed in the homelab on VM 100 (`harbor.cat-bluegill.ts.net`).
+- **siai deployed on px1** — Gitea + Woodpecker running on the homelab, not just the local POC. Tracked as an infra task in `home-network/ROADMAP.md` ("Deploy siai CI/CD on px1").
+
+### Implementation Plan
+
+1. Provision the Direction repo in Gitea (org + repo + robot account / deploy key).
+2. Add `.woodpecker.yaml` to the Direction repo:
+   - `lint` — `ruff check` on `ghcr.io/astral-sh/uv:python3.12-alpine`
+   - `test` — `uv run pytest` (the app ships ~600 tests)
+   - `build` — Docker build of the api/web/mcp image(s)
+   - `push` — push to Harbor (`harbor.cat-bluegill.ts.net/direction/...`), tag-gated
+3. Wire the Harbor robot account / credentials into Woodpecker secrets.
+4. Document the onboarding flow as the template for the *next* real consumer.
+
+### Success Criteria
+
+- A push to Direction's `main` triggers lint + test in Woodpecker.
+- A tag produces an image in Harbor that VM 100 can pull for deploy.
+- The onboarding steps are reusable for subsequent real projects.
+
+---
+
 ## v0.5.0 - Authentication & Access Configuration
 
 ### Goals
