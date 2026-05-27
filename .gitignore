@@ -15,6 +15,7 @@
 .env
 .env.local
 .env.*.local
+.env.homelab
 *.pem
 *.key
 config/setup.toml

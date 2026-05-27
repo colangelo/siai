@@ -1,0 +1,140 @@
+# Homelab (px1 / VM 107 `siai`) deployment override — layered ON TOP of the base:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.homelab.yml up -d
+#
+# Differences vs the local `.localhost` POC (additive, NON-breaking — the base
+# file alone is unchanged, so `just docker-up` still runs the local stack):
+#   - bundled `postgres` + `traefik` are profile-gated out (profile `local-only`,
+#     never activated here) → DB is pg1 (LAN-direct 192.168.4.50); ingress is two
+#     Tailscale sidecars instead of Traefik.
+#   - Gitea + Woodpecker point at pg1; persistent data lives under /data/siai
+#     (state SSD, PVE nightly backup). Build workspaces stay ephemeral.
+#   - REGISTRY_BACKEND=harbor → pipelines push to harbor.cat-bluegill.ts.net via
+#     the `robot$siai-ci` account (wired as a Woodpecker secret at deploy — see
+#     .env.homelab.example / task 4.x).
+#   - Two Tailscale sidecars front Gitea + Woodpecker on the tailnet with TLS:
+#     gitea.cat-bluegill.ts.net + ci.cat-bluegill.ts.net. Gitea SSH is DEFERRED
+#     (HTTPS + PAT only; no :2222).
+#
+# Topology mirrors the proven Direction precedent (direction/deploy/
+# docker-compose.prod.yml): a `tailscale/tailscale` sidecar shares the app's
+# network namespace (network_mode: service:<app>), so the app itself gains the
+# tailnet device + interface while keeping its `devnet` membership for in-stack
+# DNS (wpk-agent → wpk-server:9000, pipelines → gitea:3000). Containers do NOT
+# inherit MagicDNS, so the two cross-stack calls that must use the *public*
+# hostnames (Woodpecker→Gitea OAuth/API, Gitea→Woodpecker webhooks) pin the
+# sidecar tailnet IPs via `extra_hosts` — exactly the workaround Direction uses
+# for pg1/rustfs. GITEA_TS_IP / CI_TS_IP are filled after the sidecars first join
+# (task 4.2; see .env.homelab.example).
+#
+# Requires Docker Compose >= 2.24 for the `!reset` / `!override` merge tags
+# (VM 107 ships Docker CE 29.5.x). pg1 is reached LAN-direct — no tailnet ACL.
+
+services:
+  # --- replaced-by-substrate services: excluded from the homelab run ---------
+  # `local-only` is never activated here, so these don't start; the base file
+  # alone (local quick-start) has no profile on them, so they still run there.
+  postgres:
+    profiles: ["local-only"]
+
+  traefik:
+    profiles: ["local-only"]
+
+  # --- Gitea: pg1 DB, tailnet ROOT_URL, SSH disabled, data on /data/siai ------
+  gitea:
+    depends_on: !reset null          # drop the bundled-postgres health gate
+    labels: !reset null              # no Traefik on the homelab
+    extra_hosts: !override
+      # Webhook delivery: Gitea → Woodpecker uses the public WOODPECKER_HOST.
+      # Pin the `ci` sidecar's tailnet IP (filled in task 4.2).
+      - "ci.cat-bluegill.ts.net:${CI_TS_IP}"
+    volumes: !override
+      - /data/siai/gitea:/data
+    environment:
+      # Server (TLS terminated by the `gitea` Tailscale sidecar)
+      - GITEA__server__ROOT_URL=https://gitea.cat-bluegill.ts.net/
+      - GITEA__server__DOMAIN=gitea.cat-bluegill.ts.net
+      - GITEA__server__HTTP_PORT=3000
+      - GITEA__server__DISABLE_SSH=true          # SSH deferred — HTTPS + PAT git only
+      # Database → pg1 (LAN-direct, no MagicDNS, no ACL)
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=192.168.4.50:5432
+      - GITEA__database__NAME=gitea
+      - GITEA__database__USER=gitea
+      - GITEA__database__PASSWD=${GITEA_DB_PASSWORD}
+      - GITEA__database__SSL_MODE=disable
+      - GITEA__security__INSTALL_LOCK=true
+      - GITEA__webhook__ALLOWED_HOST_LIST=*       # allow the tailnet webhook target
+      - GITEA__service__DISABLE_REGISTRATION=true # SSO via tsidp (task 4.4)
+
+  gitea-ts:
+    image: tailscale/tailscale:stable
+    container_name: siai-gitea-ts
+    restart: unless-stopped
+    # No `hostname:` — it conflicts with the shared netns. TS_HOSTNAME sets the
+    # tailnet device name → gitea.cat-bluegill.ts.net.
+    environment:
+      TS_HOSTNAME: gitea
+      TS_AUTHKEY: ${TS_AUTHKEY_GITEA}             # one-shot, tag:host (mint fresh per sidecar)
+      TS_EXTRA_ARGS: "--advertise-tags=tag:host"
+      TS_SERVE_CONFIG: /config/serve.json         # :443 HTTPS → http://127.0.0.1:3000
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "false"
+    volumes:
+      - /data/siai/ts-gitea:/var/lib/tailscale
+      - ./config/homelab/serve-gitea.json:/config/serve.json:ro
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    network_mode: service:gitea                   # share Gitea's netns → tailnet device fronts gitea:3000
+    depends_on:
+      gitea:
+        condition: service_started
+
+  # --- Woodpecker server: pg1 DB, tailnet WOODPECKER_HOST --------------------
+  wpk-server:
+    depends_on: !override
+      gitea:
+        condition: service_started
+    labels: !reset null
+    extra_hosts: !override
+      # Woodpecker → Gitea OAuth/API uses the public WOODPECKER_GITEA_URL.
+      # Pin the `gitea` sidecar's tailnet IP (filled in task 4.2).
+      - "gitea.cat-bluegill.ts.net:${GITEA_TS_IP}"
+    environment:
+      - WOODPECKER_OPEN=false                      # closed registration; admins via SSO
+      - WOODPECKER_HOST=https://ci.cat-bluegill.ts.net
+      - WOODPECKER_AGENT_SECRET=${WOODPECKER_AGENT_SECRET}
+      - WOODPECKER_ADMIN=${WOODPECKER_ADMIN}
+      - WOODPECKER_SERVER_ADDR=:8000
+      - WOODPECKER_GRPC_ADDR=:9000
+      - WOODPECKER_DATABASE_DRIVER=postgres
+      - WOODPECKER_DATABASE_DATASOURCE=postgres://woodpecker:${WOODPECKER_DB_PASSWORD}@192.168.4.50:5432/woodpecker?sslmode=disable
+      - WOODPECKER_GITEA=true
+      - WOODPECKER_GITEA_URL=https://gitea.cat-bluegill.ts.net
+      - WOODPECKER_GITEA_CLIENT=${WOODPECKER_GITEA_CLIENT}
+      - WOODPECKER_GITEA_SECRET=${WOODPECKER_GITEA_SECRET}
+
+  ci-ts:
+    image: tailscale/tailscale:stable
+    container_name: siai-ci-ts
+    restart: unless-stopped
+    environment:
+      TS_HOSTNAME: ci
+      TS_AUTHKEY: ${TS_AUTHKEY_CI}                 # one-shot, tag:host (mint fresh per sidecar)
+      TS_EXTRA_ARGS: "--advertise-tags=tag:host"
+      TS_SERVE_CONFIG: /config/serve.json          # :443 HTTPS → http://127.0.0.1:8000
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "false"
+    volumes:
+      - /data/siai/ts-ci:/var/lib/tailscale
+      - ./config/homelab/serve-ci.json:/config/serve.json:ro
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    network_mode: service:wpk-server               # share Woodpecker's netns → tailnet device fronts wpk-server:8000
+    depends_on:
+      wpk-server:
+        condition: service_healthy
