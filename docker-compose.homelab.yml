@@ -47,7 +47,9 @@ services:
     extra_hosts: !override
       # Webhook delivery: Gitea → Woodpecker uses the public WOODPECKER_HOST.
       # Pin the `ci` sidecar's tailnet IP (filled in task 4.2).
-      - "ci.cat-bluegill.ts.net:${CI_TS_IP}"
+      # First-pass fallback (127.0.0.1) keeps `compose up` from failing before
+      # the sidecar has joined; runbook fills the real IP and recreates.
+      - "ci.cat-bluegill.ts.net:${CI_TS_IP:-127.0.0.1}"
     volumes: !override
       - /data/siai/gitea:/data
     environment:
@@ -101,7 +103,8 @@ services:
     extra_hosts: !override
       # Woodpecker → Gitea OAuth/API uses the public WOODPECKER_GITEA_URL.
       # Pin the `gitea` sidecar's tailnet IP (filled in task 4.2).
-      - "gitea.cat-bluegill.ts.net:${GITEA_TS_IP}"
+      # First-pass fallback (see gitea.extra_hosts above for rationale)
+      - "gitea.cat-bluegill.ts.net:${GITEA_TS_IP:-127.0.0.1}"
     environment:
       - WOODPECKER_OPEN=false                      # closed registration; admins via SSO
       - WOODPECKER_HOST=https://ci.cat-bluegill.ts.net
