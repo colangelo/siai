@@ -51,7 +51,16 @@ services:
       # the sidecar has joined; runbook fills the real IP and recreates.
       - "ci.cat-bluegill.ts.net:${CI_TS_IP:-127.0.0.1}"
     volumes: !override
-      - /data/siai/gitea:/data
+      # Gitea (rootless) stores config in /etc/gitea and data (git repos, jwt,
+      # indexers, packages) in /var/lib/gitea — NOT /data. Bind both to the
+      # state disk (/data/siai, backed up) so the data is stable and survives
+      # docker-storage changes. The earlier `/data/siai/gitea:/data` bind was
+      # inert (rootless ignores /data); the real data sat in fragile anonymous
+      # volumes and was lost when VM 107's docker storage was relocated, then
+      # recovered into these binds. See home-network
+      # docs/2026-05-28-vm107-docker-storage-disk.md.
+      - /data/siai/gitea-etc:/etc/gitea
+      - /data/siai/gitea-data:/var/lib/gitea
     environment:
       # Server (TLS terminated by the `gitea` Tailscale sidecar)
       - GITEA__server__ROOT_URL=https://gitea.cat-bluegill.ts.net/
