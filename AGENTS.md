@@ -33,3 +33,17 @@
 - Keep secrets out of the repo; use `.env.example` to document required variables and load them via environment management tools.
 - Validate inputs and handle error paths defensively; log sensitive data sparingly and redact by default.
 - Review dependency updates for security advisories; pin versions in lockfiles and update regularly.
+
+## Agent relay (cross-repo messages)
+
+This repo participates in the file-based **agent relay** for passing messages between
+agents in different repos (`home-network` / `siai` / `direction`). On session start,
+check `agent-relay/inbox/` for messages with `status: new` and handle or acknowledge
+them before other work:
+
+```bash
+grep -l 'status: new' agent-relay/inbox/*.md 2>/dev/null
+```
+
+To message another repo's agent, drop a file in **that repo's** `agent-relay/inbox/`
+following the schema. Protocol + schema: [`agent-relay/AGENTS.md`](agent-relay/AGENTS.md).

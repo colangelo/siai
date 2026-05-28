@@ -242,3 +242,17 @@ uv run servers/playwright/run.py snapshot    # Accessibility tree
 uv run servers/playwright/run.py screenshot /tmp/test.png
 uv run servers/playwright/run.py click "button"
 ```
+
+## Agent relay (cross-repo messages)
+
+This repo participates in the file-based **agent relay** for passing messages between
+agents in different repos (`home-network` / `siai` / `direction`). On session start,
+check `agent-relay/inbox/` for messages with `status: new` and handle or acknowledge
+them before other work:
+
+```bash
+grep -l 'status: new' agent-relay/inbox/*.md 2>/dev/null
+```
+
+To message another repo's agent, drop a file in **that repo's** `agent-relay/inbox/`
+following the schema. Protocol + schema: [`agent-relay/AGENTS.md`](agent-relay/AGENTS.md).
