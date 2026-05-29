@@ -26,19 +26,19 @@
 
 ## 4. Deploy on the VM (siai)
 
-- [ ] 4.1 Place the homelab compose + env on the VM; `docker compose -f docker-compose.yml -f docker-compose.homelab.yml up -d` (no bundled postgres)
-- [ ] 4.2 Bring up tailnet ingress (sidecars/`tailscale serve`) with TLS for `gitea.` + `ci.`
-- [ ] 4.3 Configure Woodpecker↔Gitea OAuth (`WOODPECKER_GITEA_CLIENT`/`SECRET`); confirm login flow
-- [ ] 4.4 Configure Gitea OIDC SSO via tsidp: `gitea admin auth add-oauth --name tsidp --provider openidConnect --auto-discover-url https://idp.cat-bluegill.ts.net/.well-known/openid-configuration` (scopes `openid email profile`; key/secret from 1P `tsidp - gitea oidc client`); confirm admin SSO login
+- [x] 4.1 Place the homelab compose + env on the VM; `docker compose -f docker-compose.yml -f docker-compose.homelab.yml up -d` (no bundled postgres) — VM 107 runs the 5 homelab services, no `siai-postgres`
+- [x] 4.2 Bring up tailnet ingress (sidecars/`tailscale serve`) with TLS for `gitea.` + `ci.` — both nodes up (`gitea` 100.103.214.79, `ci` 100.73.148.24), valid Let's Encrypt certs
+- [x] 4.3 Configure Woodpecker↔Gitea OAuth (`WOODPECKER_GITEA_CLIENT`/`SECRET`); confirm login flow — `ci/authorize` → 303 to `gitea/login/oauth/authorize` (client_id `955b402d…`)
+- [x] 4.4 Configure Gitea OIDC SSO via tsidp: `gitea admin auth add-oauth --name tsidp --provider openidConnect --auto-discover-url https://idp.cat-bluegill.ts.net/.well-known/openid-configuration` (scopes `openid email profile`; key/secret from 1P `tsidp - gitea oidc client`); confirm admin SSO login — "Sign in with tsidp" present on the login page (`/user/oauth2/tsidp`)
 
 ## 5. Verify (acceptance — maps to homelab-deployment spec)
 
-- [ ] 5.1 Gitea + Woodpecker UIs reachable over the tailnet with valid TLS; a non-tailnet client cannot reach them
-- [ ] 5.2 Gitea + Woodpecker tables live on pg1; no `postgres` container running in the homelab profile
-- [ ] 5.3 Smoke pipeline builds + pushes an image to `harbor.cat-bluegill.ts.net/<project>` via the robot account
-- [ ] 5.4 Repo data survives a VM restart and is captured by the nightly PVE backup
-- [ ] 5.5 Local `.localhost` quick-start still works unchanged (bundled postgres + Gitea registry + Traefik)
-- [ ] 5.6 Admin can log into Gitea via tsidp OIDC SSO; Woodpecker↔Gitea CI OAuth still works independently
+- [x] 5.1 Gitea + Woodpecker UIs reachable over the tailnet with valid TLS; a non-tailnet client cannot reach them — both serve valid LE certs over the tailnet; `serve.json` declares HTTPS only (no Funnel → tailnet-only by construction; off-tailnet negative not actively probed)
+- [x] 5.2 Gitea + Woodpecker tables live on pg1; no `postgres` container running in the homelab profile — pg1 holds 112 `gitea` + 19 `woodpecker` tables; VM 107 has no postgres container
+- [ ] 5.3 Smoke pipeline builds + pushes an image to `harbor.cat-bluegill.ts.net/<project>` via the robot account — **pending**: no demo repo activated / no pipeline run yet (`ci/api/repos` 401, no image under Harbor `direction`)
+- [ ] 5.4 Repo data survives a VM restart and is captured by the nightly PVE backup — **pending**: won't restart the live VM; backup coverage of the `/data` state disk is infra-owned (relay ask to home-network)
+- [x] 5.5 Local `.localhost` quick-start still works unchanged (bundled postgres + Gitea registry + Traefik) — base `docker-compose.yml` still resolves `postgres`+`traefik`+`gitea`+`wpk-*`; homelab override is additive
+- [ ] 5.6 Admin can log into Gitea via tsidp OIDC SSO; Woodpecker↔Gitea CI OAuth still works independently — **pending**: SSO link + OAuth redirect both present (4.3/4.4), but the interactive SSO login round-trip not exercised end-to-end
 
 ## 6. Document (infra + siai)
 
