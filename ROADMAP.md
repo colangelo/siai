@@ -376,6 +376,39 @@ just harbor-login           # Docker login to Harbor
 
 ---
 
+## v0.4.1 - Homelab Deployment (px1) ✅
+
+### Goals
+
+- Run siai (Gitea + Woodpecker) as the homelab's real CI/CD on a dedicated
+  Proxmox VM, integrated with the homelab substrate — additive and non-breaking
+  for the local `.localhost` POC.
+
+### Delivered
+
+- **Dedicated VM 107** on px1 (Debian 13 + Docker CE + Tailscale); repos + state
+  on the `state` SSD (`/data/siai`, captured by the nightly PVE backup).
+- **External substrate**: pg1 Postgres (LAN-direct, `gitea` + `woodpecker` DBs),
+  Harbor registry (`robot$siai-ci`); no bundled postgres/Harbor on the homelab.
+- **Tailnet ingress + TLS**: two Tailscale sidecars → `gitea.cat-bluegill.ts.net`
+  + `ci.cat-bluegill.ts.net` (tailnet-only, no Funnel). Gitea SSH deferred
+  (HTTPS + PAT).
+- **SSO**: Gitea OIDC via the homelab **tsidp** provider; Woodpecker↔Gitea CI
+  OAuth internal.
+
+### Files
+
+- `docker-compose.homelab.yml`, `.env.homelab.example`, `config/homelab/serve-*.json`
+- `deploy/homelab-runbook.md` — operator runbook
+- `openspec/changes/deploy-homelab-px1/` — proposal, design, spec, tasks
+
+### Cross-repo
+
+- Infra (VM, pg1, Harbor robot, tsidp client, tailnet ACL) owned by
+  `home-network`; contract: `home-network/docs/2026-05-27-siai-deployment-handoff.md`.
+
+---
+
 ## v0.4.5 - First Real Consumer: Direction (Dogfood Pipeline)
 
 ### Goals
@@ -389,7 +422,7 @@ just harbor-login           # Docker login to Harbor
 ### Prerequisites
 
 - **v0.4.0 Harbor** (image push target) — already deployed in the homelab on VM 100 (`harbor.cat-bluegill.ts.net`).
-- **siai deployed on px1** — Gitea + Woodpecker running on the homelab, not just the local POC. Tracked as an infra task in `home-network/ROADMAP.md` ("Deploy siai CI/CD on px1").
+- **siai deployed on px1** ✅ — Gitea + Woodpecker live on the homelab (VM 107, tailnet TLS, pg1, Harbor, tsidp SSO). Delivered by **v0.4.1** above (`openspec/changes/deploy-homelab-px1/`); see `deploy/homelab-runbook.md`.
 
 ### Implementation Plan
 
@@ -858,4 +891,4 @@ When implementing roadmap items:
 
 ---
 
-*Last updated: 2025-12-01*
+*Last updated: 2026-05-30*

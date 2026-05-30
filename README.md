@@ -23,6 +23,30 @@ Then visit:
 - **Gitea**: http://gitea.localhost
 - **Woodpecker**: http://ci.localhost (login via Gitea)
 
+## Homelab Deployment (px1)
+
+Beyond the local `.localhost` POC, siai runs as the homelab's real CI/CD on a
+dedicated Proxmox VM, integrated with the homelab substrate (external Postgres
+on **pg1**, **Harbor** registry, tailnet ingress + TLS, **tsidp** OIDC SSO). It
+is an **additive, non-breaking** profile — the local quick-start above is
+unchanged.
+
+```bash
+# Layer the homelab override on the base (external pg1, no bundled postgres):
+docker compose -f docker-compose.yml -f docker-compose.homelab.yml \
+  --env-file .env.homelab up -d
+```
+
+- **Ingress**: two Tailscale sidecars → `gitea.cat-bluegill.ts.net` +
+  `ci.cat-bluegill.ts.net` (HTTPS, tailnet-only — no Funnel). Gitea SSH deferred
+  (HTTPS + PAT).
+- **Data**: Gitea repos + Woodpecker state on the VM's `state` SSD (`/data/siai`),
+  captured by the nightly PVE backup.
+- **Config**: `docker-compose.homelab.yml`, `.env.homelab.example`,
+  `config/homelab/serve-*.json`.
+- **Operator runbook**: [`deploy/homelab-runbook.md`](deploy/homelab-runbook.md).
+- **Design + acceptance**: OpenSpec change `openspec/changes/deploy-homelab-px1/`.
+
 ## Project Structure
 
 ```

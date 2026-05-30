@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-05-28
+
+### Added
+
+- **Homelab deployment profile (px1)** - run the stack on a dedicated Proxmox VM,
+  integrated with the homelab substrate; additive and non-breaking for the local
+  `.localhost` quick-start:
+  - `docker-compose.homelab.yml` - layered override: drops the bundled `postgres`
+    + `traefik` (profile-gated `local-only`), points Gitea + Woodpecker at
+    external **pg1** (LAN-direct `192.168.4.50`), `REGISTRY_BACKEND=harbor`,
+    persistent data under `/data/siai`.
+  - **Tailnet ingress + TLS** - two `tailscale/tailscale` sidecars
+    (`network_mode: service:<app>`) serving `gitea.cat-bluegill.ts.net` +
+    `ci.cat-bluegill.ts.net` over HTTPS (Let's Encrypt via Tailscale; tailnet-only,
+    no Funnel). Gitea SSH deferred (HTTPS + PAT).
+  - `config/homelab/serve-gitea.json`, `config/homelab/serve-ci.json` - Tailscale
+    `serve` configs.
+  - `.env.homelab.example` - template for external pg1/Harbor/tailnet wiring,
+    sourced from 1Password (real `.env.homelab` gitignored).
+  - **Gitea OIDC SSO** via the homelab **tsidp** identity provider; Woodpecker↔Gitea
+    CI OAuth stays internal.
+  - `deploy/homelab-runbook.md` - operator runbook for the live VM deploy.
+  - OpenSpec change `openspec/changes/deploy-homelab-px1/` (proposal, design, spec,
+    tasks) - deployed and verified live (22/26; smoke pipeline + interactive SSO
+    pending).
+- **Cross-repo agent relay** (`agent-relay/`) - file-based inbox for passing
+  messages between repo agents (`home-network` / `siai` / `direction`); protocol
+  in `agent-relay/AGENTS.md`.
+
+### Changed
+
+- **Gitea homelab data binding** - bind `/etc/gitea` + `/var/lib/gitea` to the
+  `state` disk (not anonymous volumes) so repo data survives docker-storage
+  changes on the VM.
+
+### Documentation
+
+- `docs/2026-05-30-forgejo-vs-gitea-migration-study.md` - deferred research record
+  on a possible Forgejo migration (no transparent path from Gitea 1.26; risk audit
+  + flank-then-replace plan).
+
 ## [0.4.0] - 2025-11-29
 
 ### Added
@@ -297,6 +338,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caddy alternative configuration (`Caddyfile.example`)
 - Basic documentation in `README.md`
 
+[0.4.1]: https://github.com/colangelo/siai/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/colangelo/siai/compare/v0.3.9...v0.4.0
 [0.3.9]: https://github.com/colangelo/siai/compare/v0.3.8...v0.3.9
 [0.3.8]: https://github.com/colangelo/siai/compare/v0.3.7...v0.3.8

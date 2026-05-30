@@ -43,5 +43,5 @@
 ## 6. Document (infra + siai)
 
 - [x] 6.1 (infra) Add `hosts/configs/proxmox1/siai.md` (identity, resources, storage, tailnet, ACL, daily-use); ROADMAP move "Deploy siai on px1" Next → Shipped — **done by infra** (siai.md present since 2026-05-28; ROADMAP entry in Shipped, "Direction v0.26.4 first fully CI-built release")
-- [ ] 6.2 (siai) Document the homelab profile (README + CHANGELOG) + config templates
-- [ ] 6.3 (siai) Update ROADMAP: deploy-on-px1 done → unblocks "First Real Consumer: Direction"
+- [x] 6.2 (siai) Document the homelab profile (README + CHANGELOG) + config templates — README "Homelab Deployment (px1)" section; CHANGELOG `0.4.1`; config templates (`.env.homelab.example`, `config/homelab/serve-*.json`) already in place
+- [x] 6.3 (siai) Update ROADMAP: deploy-on-px1 done → unblocks "First Real Consumer: Direction" — added `v0.4.1` Shipped section; flipped the v0.4.5 "siai deployed on px1" prerequisite to ✅
