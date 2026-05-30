@@ -1,0 +1,25 @@
+# Homelab CI agent overlay — pins the forge + registry hostnames for pipeline
+# steps spawned by the Woodpecker docker backend. Layer it LAST:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.homelab.yml \
+#       -f docker-compose.homelab.smoke.yml --env-file .env.homelab up -d wpk-agent
+#
+# Why this exists: the agent runs on `siai_devnet` (no MagicDNS), and the
+# pipeline containers it spawns inherit WOODPECKER_BACKEND_DOCKER_EXTRA_HOSTS as
+# their /etc/hosts. Without it, `docker login/push harbor.cat-bluegill.ts.net`
+# from a build step can't resolve Harbor. `gitea:gitea` keeps the in-network
+# clone host stable; `harbor.cat-bluegill.ts.net:${HARBOR_TS_IP}` pins Harbor's
+# tailnet IP for image push/pull.
+#
+# HARBOR_TS_IP comes from .env.homelab (see .env.homelab.example):
+#   HARBOR_TS_IP=$(tailscale ip -4 harbor)   # e.g. 100.86.8.111
+#
+# This was previously a VM-only overlay on VM 107; tracked here so the working
+# Harbor-reach config survives a redeploy (Direction's CI build-push depends on
+# it). Verified path: Direction's tag pipeline pushes
+# harbor.cat-bluegill.ts.net/direction/{api,web,mcp} via robot$siai-ci.
+
+services:
+  wpk-agent:
+    environment:
+      - WOODPECKER_BACKEND_DOCKER_EXTRA_HOSTS=gitea:gitea,harbor.cat-bluegill.ts.net:${HARBOR_TS_IP}
