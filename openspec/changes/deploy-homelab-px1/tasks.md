@@ -36,12 +36,12 @@
 - [x] 5.1 Gitea + Woodpecker UIs reachable over the tailnet with valid TLS; a non-tailnet client cannot reach them — both serve valid LE certs over the tailnet; `serve.json` declares HTTPS only (no Funnel → tailnet-only by construction; off-tailnet negative not actively probed)
 - [x] 5.2 Gitea + Woodpecker tables live on pg1; no `postgres` container running in the homelab profile — pg1 holds 112 `gitea` + 19 `woodpecker` tables; VM 107 has no postgres container
 - [ ] 5.3 Smoke pipeline builds + pushes an image to `harbor.cat-bluegill.ts.net/<project>` via the robot account — **pending**: no demo repo activated / no pipeline run yet (`ci/api/repos` 401, no image under Harbor `direction`)
-- [ ] 5.4 Repo data survives a VM restart and is captured by the nightly PVE backup — **pending**: won't restart the live VM; backup coverage of the `/data` state disk is infra-owned (relay ask to home-network)
+- [x] 5.4 Repo data survives a VM restart and is captured by the nightly PVE backup — backup **confirmed by infra** (`stateful-vms-nightly` vzdump job; VM 107's first dump includes scsi1 `/data/siai`); restart-survival is architectural (config+data bound to the backed-up `state` disk, commit 8941069). Caveat: dumps share the `state` NVMe — off-disk PBS tracked in home-network ROADMAP *Later*
 - [x] 5.5 Local `.localhost` quick-start still works unchanged (bundled postgres + Gitea registry + Traefik) — base `docker-compose.yml` still resolves `postgres`+`traefik`+`gitea`+`wpk-*`; homelab override is additive
 - [ ] 5.6 Admin can log into Gitea via tsidp OIDC SSO; Woodpecker↔Gitea CI OAuth still works independently — **pending**: SSO link + OAuth redirect both present (4.3/4.4), but the interactive SSO login round-trip not exercised end-to-end
 
 ## 6. Document (infra + siai)
 
-- [ ] 6.1 (infra) Add `hosts/configs/proxmox1/siai.md` (identity, resources, storage, tailnet, ACL, daily-use); ROADMAP move "Deploy siai on px1" Next → Shipped
+- [x] 6.1 (infra) Add `hosts/configs/proxmox1/siai.md` (identity, resources, storage, tailnet, ACL, daily-use); ROADMAP move "Deploy siai on px1" Next → Shipped — **done by infra** (siai.md present since 2026-05-28; ROADMAP entry in Shipped, "Direction v0.26.4 first fully CI-built release")
 - [ ] 6.2 (siai) Document the homelab profile (README + CHANGELOG) + config templates
 - [ ] 6.3 (siai) Update ROADMAP: deploy-on-px1 done → unblocks "First Real Consumer: Direction"
