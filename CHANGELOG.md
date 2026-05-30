@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5] - 2026-05-30
+
+### Added
+
+- **CI consumer onboarding** - formalize how a real repository gets built by the
+  homelab CI/CD stack (Gitea → Woodpecker → Harbor):
+  - `docs/onboard-ci-consumer.md` - end-to-end onboarding runbook: Gitea repo →
+    Harbor project + `robot$siai-ci` scope (via the home-network agent relay) →
+    Woodpecker activate + mark Trusted → registry secrets → tag-gated pipeline →
+    trigger + verify.
+  - `templates/.woodpecker.consumer.yml` - reusable pipeline template derived
+    from Direction's proven pipeline (lint + test gate; tag-gated `build-push`
+    to `harbor.cat-bluegill.ts.net/<project>/<image>:<tag>`; secrets via
+    `from_secret`).
+  - OpenSpec change `ci-consumer-onboarding` (new `ci-consumer-onboarding`
+    capability). Reference consumer: `ac/direction`, CI-built through `v0.26.8`.
+  - Scope: retroactive + template (documents the proven flow). Deferred: a second
+    consumer and onboarding automation.
+
 ## [0.4.1] - 2026-05-28
 
 ### Added
@@ -338,6 +357,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caddy alternative configuration (`Caddyfile.example`)
 - Basic documentation in `README.md`
 
+[0.4.5]: https://github.com/colangelo/siai/compare/v0.4.1...v0.4.5
 [0.4.1]: https://github.com/colangelo/siai/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/colangelo/siai/compare/v0.3.9...v0.4.0
 [0.3.9]: https://github.com/colangelo/siai/compare/v0.3.8...v0.3.9

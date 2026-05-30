@@ -409,7 +409,19 @@ just harbor-login           # Docker login to Harbor
 
 ---
 
-## v0.4.5 - First Real Consumer: Direction (Dogfood Pipeline)
+## v0.4.5 - First Real Consumer: Direction + CI Onboarding (formalize + templatize) ✅
+
+> **Shipped 2026-05-30.** Direction was onboarded and CI-built end-to-end on the
+> homelab stack (push → lint+test gate; tag → `harbor/direction/{api,web,mcp}`),
+> through tag `v0.26.8`. This release **formalized + templatized** that flow so
+> the next consumer is repeatable:
+> - `docs/onboard-ci-consumer.md` — reusable onboarding runbook
+> - `templates/.woodpecker.consumer.yml` — pipeline template (from Direction's)
+> - OpenSpec change `ci-consumer-onboarding` (new `ci-consumer-onboarding` capability)
+>
+> **Deferred (future changes):** a second consumer to empirically validate
+> repeatability; onboarding automation (`just onboard-consumer`); consumer-side
+> deploy/CD. Original plan preserved below for reference.
 
 ### Goals
 
@@ -891,4 +903,4 @@ When implementing roadmap items:
 
 ---
 
-*Last updated: 2026-05-30*
+*Last updated: 2026-05-30 (v0.4.5 shipped)*

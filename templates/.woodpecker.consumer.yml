@@ -1,0 +1,82 @@
+# Woodpecker CI consumer template — siai homelab CI/CD.
+# Copy to a real repo as `.woodpecker.yml` and replace every <PLACEHOLDER>.
+# Derived from the proven Direction pipeline (ac/direction). Build + push only;
+# deploy stays consumer-owned.
+#
+# Runs on the homelab Woodpecker agent (VM 107, amd64, docker backend).
+# Full onboarding runbook: siai/docs/onboard-ci-consumer.md
+#
+# ── Onboarding (one-time, before this pipeline can run) ────────────────────────
+#   1. Harbor: a `<PROJECT>` project exists and robot$siai-ci has push/pull on it.
+#      → request via the agent relay to home-network (see the runbook). Do NOT
+#        mint a new robot; re-scope robot$siai-ci.
+#   2. Woodpecker (ci.cat-bluegill.ts.net): activate this repo; mark it TRUSTED.
+#      ⚠ TRUSTED grants the host Docker socket (/var/run/docker.sock) to build
+#        steps — admin-only, security-relevant. Required for `docker build/push`.
+#   3. Woodpecker repo (or org) secrets:
+#        registry_url       = harbor.cat-bluegill.ts.net
+#        registry_username  = robot$siai-ci
+#        registry_password  = <Harbor robot token — 1P "harbor - siai-ci robot",
+#                              field `credential` (NOT password)>
+#
+# ── Release ───────────────────────────────────────────────────────────────────
+#   git tag v<X.Y.Z> && git push gitea v<X.Y.Z>
+#   → builds + pushes harbor.cat-bluegill.ts.net/<PROJECT>/<IMAGE>:<X.Y.Z>
+#
+# Clone reachability on the homelab (forge resolves as `gitea` on siai_devnet)
+# is handled at the platform layer — see siai/docs/2026-05-28-pipeline-clone-dns.md.
+# No custom clone block is needed here (unlike the local .localhost demo).
+
+steps:
+  # ── Gate: runs on every push / PR / manual trigger ──────────────────────────
+  - name: lint
+    image: ghcr.io/astral-sh/uv:python3.12-alpine   # adjust to your toolchain
+    depends_on: []
+    when:
+      - event: [push, pull_request, manual]
+    commands:
+      - uv sync --frozen --group dev
+      - uv run --no-sync ruff check .
+      - uv run --no-sync ruff format --check .
+
+  - name: test
+    image: ghcr.io/astral-sh/uv:python3.12-alpine
+    depends_on:
+      - lint            # serialize: lint + test share the workspace .venv
+    when:
+      - event: [push, pull_request, manual]
+    commands:
+      - uv sync --frozen --group dev
+      - uv run --no-sync pytest -q
+
+  # ── Build + push: ONLY on version tags (vX.Y.Z) ─────────────────────────────
+  # Requires the repo to be TRUSTED (docker.sock mount). Credentials come from
+  # Woodpecker secrets — never inline them.
+  - name: build-push
+    image: docker:27-cli
+    depends_on:
+      - lint
+      - test
+    when:
+      - event: tag
+        ref: refs/tags/v*
+    environment:
+      REGISTRY_URL:
+        from_secret: registry_url
+      REGISTRY_USERNAME:
+        from_secret: registry_username
+      REGISTRY_PASSWORD:
+        from_secret: registry_password
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    commands:
+      - export TAG="${CI_COMMIT_TAG#v}"          # vX.Y.Z -> X.Y.Z
+      - echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY_URL" -u "$REGISTRY_USERNAME" --password-stdin
+      - docker build -t "$REGISTRY_URL/<PROJECT>/<IMAGE>:$TAG" -f Dockerfile .
+      - docker push "$REGISTRY_URL/<PROJECT>/<IMAGE>:$TAG"
+      # Multi-image app? Repeat build/push per image with its own Dockerfile/context,
+      # e.g. (Direction): api (-f Dockerfile .), web (-f web/Dockerfile web/),
+      # mcp (-f mcp/Dockerfile mcp/).
+
+# Need service containers (e.g. a Postgres for tests)? Add a `services:` block —
+# it also requires the repo to be TRUSTED. See ac/direction's .woodpecker.yml.

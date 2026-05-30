@@ -45,7 +45,14 @@ docker compose -f docker-compose.yml -f docker-compose.homelab.yml \
 - **Config**: `docker-compose.homelab.yml`, `.env.homelab.example`,
   `config/homelab/serve-*.json`.
 - **Operator runbook**: [`deploy/homelab-runbook.md`](deploy/homelab-runbook.md).
-- **Design + acceptance**: OpenSpec change `openspec/changes/deploy-homelab-px1/`.
+- **Design + acceptance**: archived OpenSpec change `openspec/changes/archive/2026-05-30-deploy-homelab-px1/`.
+
+### Onboarding a repo to CI
+
+To build a real project on this stack (Gitea → Woodpecker → Harbor), follow
+[`docs/onboard-ci-consumer.md`](docs/onboard-ci-consumer.md) and start from the
+[`templates/.woodpecker.consumer.yml`](templates/.woodpecker.consumer.yml)
+pipeline template. Reference consumer: `ac/direction` (CI-built through `v0.26.8`).
 
 ## Project Structure
 
