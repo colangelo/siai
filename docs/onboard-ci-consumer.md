@@ -118,6 +118,73 @@ The template gives you a lint + test **gate** (push / PR / manual) and a
   `direction/docs/guide-ci-triggers.md` — the live reference for everything
   beyond the production `git push` / `git tag` path.
 
+## Running an end-to-end / browser suite (services + app-under-test)
+
+The build template (`.woodpecker.consumer.yml`) is build + push only. For a
+consumer that needs a **live stack under test** — e.g. a Playwright suite hitting
+a running web + API + database — use the companion template
+`templates/.woodpecker.e2e-playwright.yml`. Proven by `ac/direction`'s
+`.woodpecker/parity-eval.yml` (its frontend parity-eval harness).
+
+The pattern, in three parts:
+
+1. **Backing infra → `services:`.** A `postgres:18-alpine` (or redis, qdrant, …)
+   is reachable from every step by its **service name** as hostname. Service
+   containers are admin-gated: the repo must be **TRUSTED** (same gate as the
+   `docker.sock` mount).
+2. **App-under-test → `detach: true` steps.** The API and web tiers run as
+   detached steps that stay alive for the life of the pipeline and are **also
+   reachable by step name** (e.g. `http://api:8000`, `http://web:3000`), exactly
+   like services. They must **bind `0.0.0.0`** (not `127.0.0.1`) so sibling
+   containers can reach them. Build artifacts land in the shared workspace, so a
+   non-detached `build` step and the detached `serve` step can be split.
+3. **Test step polls for readiness.** `depends_on` orders *start*, not *health* —
+   a detached step never "completes", and many suites' own preflight tries only
+   once. Poll the full chain (web → `/api` proxy → api → db) before running.
+   `node` is guaranteed inside the `mcr.microsoft.com/playwright` image, so the
+   template's readiness loop uses it (no `curl`/`wget` dependency).
+
+> **Multiple workflows need the `.woodpecker/` DIRECTORY.** A single
+> `.woodpecker.yml` *file* is one workflow. To add an e2e workflow alongside an
+> existing build pipeline, `git mv .woodpecker.yml .woodpecker/build.yml` first,
+> then add `.woodpecker/e2e.yml`. You cannot have both the file and the dir —
+> when the dir exists, the top-level file is ignored.
+
+Pin the Playwright image to the **same version** as the repo's `@playwright/test`
+(`mcr.microsoft.com/playwright:v<X.Y.Z>-noble`) so the bundled browsers match.
+
+### Generating Linux visual baselines
+
+`toHaveScreenshot` baselines are **OS/font-stack dependent** — pixels rendered on
+macOS or Windows will not match the CI Linux agent. So canonical baselines must be
+generated **in the same pinned Linux container**, never on a developer laptop.
+(Structural `toMatchAriaSnapshot` baselines are OS-independent — commit those once;
+only the *visual* layer is platform-pinned.)
+
+One-shot recipe — run it where Docker is available (the homelab agent, or any
+Docker host; **not** a macOS box without a Linux container):
+
+```bash
+# With the app + API + db stack already up and reachable at $BASE_URL:
+docker run --rm --network host \
+  -v "$PWD/e2e/playwright:/work" -w /work \
+  -e BASE_URL="http://localhost:3000" \
+  mcr.microsoft.com/playwright:v<X.Y.Z>-noble \
+  sh -c 'npm ci && npx playwright test --update-snapshots'
+# Then review + commit the new PNGs under tests/__snapshots__/ in the consumer repo.
+```
+
+Two consumer-side prerequisites for the visual layer (these live in the consumer's
+`playwright.config.ts`, not here):
+
+- **Add a `{platform}` segment to the screenshot `snapshotPathTemplate`** so per-OS
+  pixels don't collide with the OS-independent structural baselines. (Direction's
+  config has a comment marking exactly where this goes — task 6.2.)
+- Visual baselines for **read-only** routes also need a **seeded corpus** up in the
+  stack (and Qdrant if a spec exercises `mode=semantic`/`hybrid`); the write-only
+  job needs neither. Until canonical baselines are committed, keep the visual layer
+  **advisory** and let behavioral + structural assertions gate.
+
 ## Notes & references
 
 - **Clone reachability:** pipeline containers resolve the forge as `gitea` on

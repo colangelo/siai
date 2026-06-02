@@ -1,0 +1,118 @@
+# Woodpecker CI consumer template — end-to-end / browser suite (Playwright).
+# Copy into a consumer repo (e.g. as `.woodpecker/e2e.yml`) and replace every
+# <PLACEHOLDER>. This is the "app-under-test + services" companion to
+# `.woodpecker.consumer.yml` (which is build + push only).
+#
+# Proven by: ac/direction's `.woodpecker/parity-eval.yml` (the frontend
+# parity-eval harness). Full pattern writeup: siai/docs/onboard-ci-consumer.md
+# § "Running an end-to-end / browser suite".
+#
+# Runs on the homelab Woodpecker agent (VM 107, amd64, docker backend).
+#
+# ── Prerequisites (one-time) ───────────────────────────────────────────────────
+#   1. The repo is activated AND marked TRUSTED in Woodpecker
+#      (ci.cat-bluegill.ts.net). TRUSTED is REQUIRED for the `services:` block —
+#      service containers are admin-gated, same as the docker.sock mount.
+#   2. Multiple workflows need the `.woodpecker/` DIRECTORY (a single
+#      `.woodpecker.yml` file is one workflow). If you already have
+#      `.woodpecker.yml`, `git mv` it into `.woodpecker/build.yml` first, then add
+#      this as `.woodpecker/e2e.yml`. You cannot have both the file and the dir.
+#
+# ── Networking model ────────────────────────────────────────────────────────────
+# Backing infra (db, cache, ...) goes in `services:` and is reachable by service
+# name. The app-under-test runs as `detach: true` STEPS — they stay alive for the
+# life of the pipeline and are ALSO reachable by step name on the shared network,
+# exactly like services. The test step polls the full chain for readiness before
+# running (do NOT rely on `depends_on` for readiness — it orders start, not
+# health).
+
+when:
+  # Keep heavy browser runs off tags/releases. Narrow to `manual` or add a path
+  # filter (e.g. `path: [web/**, e2e/**]`) if it proves too heavy once observed.
+  - event: [push, pull_request, manual]
+
+steps:
+  # ── Backend under test (detached) ──────────────────────────────────────────
+  - name: api
+    image: <API_IMAGE>                  # e.g. ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+    detach: true
+    depends_on: []
+    environment:
+      # Point the app at the `db` service below. An empty DB is fine if the app
+      # creates its own schema on first connect; otherwise add a migration command.
+      <APP_DB_URL_VAR>: postgresql://<USER>:<PASS>@db:5432/<DB>
+      # ... other app env (feature flags, throwaway data dirs — NEVER real data).
+    commands:
+      - <INSTALL_DEPS>                  # e.g. uv sync --frozen --group dev
+      # Wait for the db service to accept connections before the app starts.
+      - |
+        for i in $(seq 1 30); do
+          <DB_PING_CMD> 2>/dev/null && break
+          echo "waiting for db ($i/30)"; sleep 1
+        done
+      # MUST bind 0.0.0.0 so other containers can reach this step as host `api`.
+      - <SERVE_CMD_BIND_0.0.0.0>        # e.g. uv run --no-sync app serve --host 0.0.0.0 --port 8000
+
+  # ── Frontend under test (detached) ─────────────────────────────────────────
+  # Omit this step if the app is API-only and Playwright hits `api` directly.
+  - name: web
+    image: <WEB_IMAGE>                  # e.g. node:22-bookworm-slim
+    detach: true
+    depends_on: []
+    environment:
+      <API_BACKEND_VAR>: http://api:8000   # how the web tier reaches the backend
+    commands:
+      - cd <WEB_DIR>
+      - npm ci
+      - <DEV_OR_START_CMD_BIND_0.0.0.0>    # e.g. npm run dev -- --hostname 0.0.0.0 --port 3000
+
+  # ── Run the Playwright suite against the stack ─────────────────────────────
+  - name: playwright
+    # Pin the image to the SAME version as the repo's `@playwright/test`, so the
+    # bundled browsers match and (for visual baselines) pixels are reproducible.
+    image: mcr.microsoft.com/playwright:v<PLAYWRIGHT_VERSION>-noble
+    depends_on: []
+    environment:
+      BASE_URL: http://web:3000          # or http://api:8000 for an API-only suite
+      CI: "true"
+      # <EXTRA_TEST_ENV>: e.g. EVAL_WRITE=1 to opt into self-cleaning write specs.
+    commands:
+      - cd <E2E_DIR>                     # e.g. e2e/playwright
+      - npm ci
+      # Readiness gate: poll the full chain before the suite's own preflight runs.
+      # node is guaranteed in the playwright image (no curl/wget dependency).
+      - |
+        node -e '
+          const http = require("http");
+          const base = process.env.BASE_URL;
+          const ping = (p) => new Promise((res) => {
+            const req = http.get(base + p, (r) => { r.resume(); res(r.statusCode >= 200 && r.statusCode < 400); });
+            req.on("error", () => res(false));
+            req.setTimeout(5000, () => { req.destroy(); res(false); });
+          });
+          (async () => {
+            for (let i = 1; i <= 90; i++) {
+              if (await ping("<HEALTH_PATH>")) { console.log("✓ stack ready"); process.exit(0); }
+              console.log(`waiting for stack at ${base} (${i}/90)`);
+              await new Promise((r) => setTimeout(r, 2000));
+            }
+            console.error("✗ stack not ready"); process.exit(1);
+          })();
+        '
+      - npx playwright test <TEST_FILTER>
+
+services:
+  - name: db
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: <USER>
+      POSTGRES_PASSWORD: <PASS>
+      POSTGRES_DB: <DB>
+
+# ── Visual baselines (toHaveScreenshot) ────────────────────────────────────────
+# Screenshot pixels are OS/font-stack dependent, so baselines MUST be generated
+# in this same pinned Linux container, never on a developer's macOS/Windows box.
+# See siai/docs/onboard-ci-consumer.md § "Generating Linux visual baselines" for
+# the one-shot `--update-snapshots` recipe and the per-platform snapshot-path
+# requirement. Treat the visual layer as advisory until canonical Linux baselines
+# are committed (behavioral + structural assertions stay authoritative throughout).

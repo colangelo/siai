@@ -79,4 +79,9 @@ steps:
       # mcp (-f mcp/Dockerfile mcp/).
 
 # Need service containers (e.g. a Postgres for tests)? Add a `services:` block —
-# it also requires the repo to be TRUSTED. See ac/direction's .woodpecker.yml.
+# it also requires the repo to be TRUSTED. See ac/direction's .woodpecker/build.yml.
+#
+# Need a full stack under test (browser/e2e suite: app + API + db + Playwright)?
+# Use the companion template `.woodpecker.e2e-playwright.yml` (multiple workflows
+# live in a `.woodpecker/` dir). Pattern: onboard-ci-consumer.md § "Running an
+# end-to-end / browser suite". Proven by ac/direction's .woodpecker/parity-eval.yml.
