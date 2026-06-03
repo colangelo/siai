@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Agent context consolidated into `AGENTS.md`** — merged the split
+  `CLAUDE.md` + `AGENTS.md` into a single canonical `AGENTS.md`; `CLAUDE.md` is now
+  a symlink to it (git stores a real symlink, mode `120000`). omp (oh-my-pi) loads
+  a repo-root `AGENTS.md` via its walk-up context-file provider but ignores a
+  repo-root `CLAUDE.md`, so only the generic boilerplate `AGENTS.md` was loaded
+  while the accurate `CLAUDE.md` (stack overview, commands, setup flow,
+  architecture, registry, pipelines) was not. Canonical content is the former
+  `CLAUDE.md`. The generic Codex "Repository Guidelines" scaffold was dropped —
+  it was template boilerplate that contradicted the project's actual conventions
+  (e.g. "add a Makefile" / "use venv" vs. this repo's Justfile + uv + Docker).
+  Claude Code still resolves `CLAUDE.md` via the symlink.
+
 ## [0.4.5] - 2026-05-30
 
 ### Added

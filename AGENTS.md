@@ -1,38 +1,246 @@
+# AGENTS.md
 
-# Repository Guidelines
+Guidance for AI agents (Claude Code, Codex, omp) working with code in this repository.
 
-## Project Structure & Module Organization
-- Keep all executable code in `src/` with clear subpackages per domain (e.g., `src/api/`, `src/services/`, `src/lib/`).
-- Place automated tests in `tests/` mirroring the `src/` layout; add fixtures under `tests/fixtures/`.
-- Store CLI or maintenance helpers in `scripts/`; keep them executable and self-documented (`--help`).
-- Track design docs and runbooks in `docs/`; include architecture notes and decision records.
+## Project Overview
 
-## Build, Test, and Development Commands
-- Add a Makefile early with standard targets; once present, use `make setup` (bootstrap deps), `make lint`, `make test`, and `make format`.
-- Prefer local virtual envs (`python -m venv .venv && source .venv/bin/activate`) or language-specific env tooling; avoid global installs.
-- For quick smoke runs during development, provide a `make dev` or `npm run dev` entry that starts the primary service with hot reload if applicable.
+Local OSS CI/CD stack: **Gitea + Woodpecker CI + Traefik** (Caddy alternative available). This is a POC/template for self-hosted Git + CI pipelines with Docker-based execution.
 
-## Coding Style & Naming Conventions
-- Use 2 or 4 space indentation consistently per language norms; avoid tabs unless required by tooling.
-- Favor clear, descriptive module and file names (`user_service.py`, `queue_client.ts`) over abbreviations.
-- Keep public interfaces documented with concise docstrings or comments; avoid inline comments for obvious code.
-- Add formatter and linter configuration (`ruff`, `eslint`, `prettier`, or equivalents) at the repo root; run them before pushing.
+## Common Commands
 
-## Testing Guidelines
-- Mirror production entry points with integration tests; isolate core logic with fast unit tests.
-- Name tests descriptively (`test_handles_empty_payload`, `test_user_creation_happy_path`); group related cases in files that match the module under test.
-- Aim for meaningful coverage of critical paths rather than a numeric target; add regression tests for every bug fix.
-- Provide example data in `tests/fixtures/` and keep it small to stay fast in CI.
+```bash
+# === QUICKSTART (recommended) ===
+just quickstart      # 🚀 Fully automated setup (does everything)
 
-## Commit & Pull Request Guidelines
-- Write commits in imperative present tense (`Add auth middleware`, `Refactor queue client`); keep them scoped and reviewable.
-- Reference related issues in PR descriptions; include a brief summary, testing notes, and any risks or rollout steps.
-- Attach screenshots or logs when changes affect output or UX; note migrations or config changes explicitly.
+# === STEP-BY-STEP SETUP ===
+just step1-init      # Create .env and config/setup.toml from examples
+just step2-secrets   # Generate WOODPECKER_AGENT_SECRET
+just step3-start     # Start all services
+just step4-configure # Initialize Gitea + create OAuth app
+just step5-demo      # Create demo repository with CI pipeline
+just step6-apply     # Provision users/orgs from config/setup.toml
 
-## Security & Configuration Tips
-- Keep secrets out of the repo; use `.env.example` to document required variables and load them via environment management tools.
-- Validate inputs and handle error paths defensively; log sensitive data sparingly and redact by default.
-- Review dependency updates for security advisories; pin versions in lockfiles and update regularly.
+# === TOOLS ===
+just wizard          # Interactive setup wizard
+just step5-demo-dry-run   # Preview demo creation
+just step6-apply-dry-run  # Preview setup changes
+
+# === STACK MANAGEMENT ===
+just docker-up              # Start all services
+just docker-down            # Stop all services
+just docker-restart         # Restart after .env changes
+just docker-status          # Show service status
+just docker-health          # Status + endpoint URLs
+
+# === LOGS ===
+just docker-logs            # Follow all logs
+just docker-logs-server     # Woodpecker server logs
+just docker-logs-agent      # Woodpecker agent logs
+
+# === CLEANUP ===
+just docker-clean           # Remove containers/networks
+just docker-clean-all       # Also remove volumes (destructive)
+just nuclear                # Full reset with config backup
+
+# === HARBOR (optional) ===
+just harbor-up              # Start Harbor services
+just harbor-down            # Stop Harbor services
+just harbor-setup           # Configure projects/robot accounts
+just harbor-login           # Docker login to Harbor
+just registry-status        # Show active registry configuration
+```
+
+## Setup Flow
+
+**Recommended:** `just quickstart` (fully automated)
+
+**Or step-by-step:**
+1. `just step1-init` - create .env and config/setup.toml
+2. `just step2-secrets` - generate agent secret
+3. `just step3-start` - start stack
+4. `just step4-configure` - initialize Gitea + create OAuth app
+5. `just docker-restart` - apply OAuth credentials
+6. `just step5-demo` - create demo repository (optional)
+7. `just step6-apply` - provision users/orgs from config (optional)
+8. Visit `http://ci.localhost`, login via Gitea, activate repos
+
+## Project Structure
+
+```
+siai/
+├── scripts/                    # Python automation (PEP 723 + uv)
+│   ├── gitea_wizard.py         # Interactive setup wizard
+│   ├── gitea_setup.py          # Provision users, orgs, teams
+│   ├── gitea_oauth.py          # Create OAuth2 applications
+│   ├── gitea_demo.py           # Create demo repository
+│   └── harbor_setup.py         # Harbor project/robot account setup
+├── demo-repo/                  # Demo repository template files
+│   ├── main.py                 # FastAPI application
+│   ├── pyproject.toml          # Python project config (uv)
+│   ├── Dockerfile              # Docker build with uv
+│   └── .woodpecker.yaml        # CI pipeline (registry-agnostic)
+├── servers/                    # Automation tools
+│   └── playwright/             # Browser automation
+│       └── run.py              # Playwright CLI runner
+├── config/
+│   ├── init-db.sql             # PostgreSQL database init (gitea, woodpecker, harbor)
+│   ├── setup.toml.example      # User/org/registry configuration template
+│   ├── harbor/                 # Harbor configuration templates
+│   │   ├── app.conf            # Harbor core config
+│   │   ├── registry-config.yml # Registry config
+│   │   └── jobservice-config.yml # Job service config
+│   └── Caddyfile.example       # Alternative reverse proxy config
+├── docs/
+│   ├── PLATFORM-ACCESS.md      # API and automation guide
+│   └── HARBOR.md               # Harbor setup guide
+├── docker-compose.yml          # Core services (Gitea, Woodpecker, Traefik)
+├── docker-compose.harbor.yml   # Harbor services (optional)
+├── Justfile
+└── .env.example
+```
+
+## Architecture
+
+| Container     | Image                      | Description                                      |
+|---------------|----------------------------|--------------------------------------------------|
+| ci-traefik    | traefik:v3                 | Reverse proxy, routes `*.localhost` domains      |
+| ci-postgres   | postgres:18                | Shared database for Gitea and Woodpecker         |
+| gitea         | gitea/gitea:latest-rootless| Git server with webhook support                  |
+| wpk-server    | woodpecker-server:v3       | CI coordinator (HTTP 8000, gRPC 9000)            |
+| wpk-agent     | woodpecker-agent:v3        | Job runner using host Docker socket              |
+
+All services communicate on `devnet` Docker network. PostgreSQL creates `gitea` and `woodpecker` databases on init via `config/init-db.sql`.
+
+## Key Configuration Details
+
+### Webhook Delivery (Gitea → Woodpecker)
+
+Gitea must reach `ci.localhost` to deliver webhooks. This is configured via:
+- `extra_hosts: ci.localhost:host-gateway` on the gitea container
+- `GITEA__webhook__ALLOWED_HOST_LIST=external,loopback,private` to allow private IPs
+
+### Pipeline Cloning (Internal Docker Network)
+
+Pipeline containers can't resolve `gitea.localhost`. The demo pipeline uses a custom clone step:
+
+```yaml
+clone:
+  - name: clone
+    image: woodpeckerci/plugin-git
+    settings:
+      remote: http://gitea:3000/${CI_REPO}  # Docker network hostname
+```
+
+### Docker Builds (Trusted Repos)
+
+To enable Docker socket access in pipelines:
+
+1. Set `WOODPECKER_ADMIN=admin` in `.env` (matches Gitea username)
+2. Restart Woodpecker to pick up admin setting
+3. In Woodpecker UI: repo Settings → Trusted → enable **Volumes**
+4. Pipeline can now mount `/var/run/docker.sock`
+
+## Demo Pipeline (.woodpecker.yaml)
+
+The demo repo includes a 5-step pipeline:
+
+| Step | Image | Trigger | Description |
+|------|-------|---------|-------------|
+| `clone` | woodpeckerci/plugin-git | always | Clone via internal network |
+| `lint` | ghcr.io/astral-sh/uv:python3.12-alpine | always | Run ruff linter |
+| `test` | ghcr.io/astral-sh/uv:python3.12-alpine | always | Run tests with uv |
+| `build` | docker:cli | manual/tag | Docker build (requires trusted) |
+| `push` | docker:cli | manual/tag | Push to Gitea registry |
+
+## Container Registry
+
+Two registry backends are supported:
+
+| Backend | URL | Use Case |
+|---------|-----|----------|
+| **Gitea** (default) | `127.0.0.1` | Simple, no extra services |
+| **Harbor** (optional) | `registry.localhost` | Enterprise features |
+
+### Gitea Registry (Default)
+
+```bash
+# Pull and run
+docker pull 127.0.0.1/admin/demo-app:latest
+docker run --rm -p 8080:8000 127.0.0.1/admin/demo-app:latest
+```
+
+The pipeline uses `127.0.0.1` (not `gitea.localhost`) because it's in Docker's default insecure registries list, avoiding HTTPS requirements.
+
+### Harbor Registry (Optional)
+
+Enable Harbor for vulnerability scanning, RBAC, and robot accounts:
+
+```bash
+# Enable in .env
+REGISTRY_BACKEND=harbor
+
+# Start Harbor
+just harbor-up
+
+# Configure projects/robot accounts
+just harbor-setup
+```
+
+Harbor architecture:
+- `harbor-core` - API and business logic
+- `harbor-portal` - Web UI at `http://registry.localhost`
+- `harbor-registry` - Docker registry storage
+- `harbor-jobservice` - Async job processing
+- `harbor-redis` - Caching
+- `harbor-trivy` - Vulnerability scanner (optional, `HARBOR_TRIVY_ENABLED=true`)
+
+See `docs/HARBOR.md` for detailed setup guide.
+
+## Platform Access Guide
+
+See `docs/PLATFORM-ACCESS.md` for detailed documentation on:
+- Gitea API access with token authentication
+- Browser automation via Playwright
+- Docker registry commands
+- Network architecture
+
+## Production Pipeline Template (.woodpecker.yml)
+
+Multi-stage pipeline for Python projects deploying to Kubernetes:
+
+- `lint_and_test`: Python 3.12 + uv + pytest
+- `fetch_secrets_from_vault`: optional Vault integration
+- `build_and_push_image`: Docker build/push
+- `terraform_plan/apply`: infrastructure (push triggers plan, tags trigger apply)
+- `helm_deploy`: Kubernetes deployment on tags
+
+## Woodpecker Secrets
+
+Configure in Woodpecker UI for pipeline:
+
+- `registry_url`, `registry_username`, `registry_password`
+- `vault_addr`, `vault_token` (if using Vault step)
+- `aws_access_key_id`, `aws_secret_access_key` (for Terraform)
+- `kubeconfig` (for Helm deploys)
+
+## Caddy Alternative
+
+Replace Traefik with Caddy using `config/Caddyfile.example`. Mount the Caddyfile in a Caddy service, expose ports 80/443. Caddy provides automatic HTTPS but doesn't use Docker labels.
+
+## Browser Automation (Playwright)
+
+For testing the web UIs, use the Playwright runner:
+
+```bash
+# Install browser (first time)
+uv run --with playwright python -c "from playwright.__main__ import main; main()" install chromium
+
+# Navigate and interact
+uv run servers/playwright/run.py navigate "http://ci.localhost"
+uv run servers/playwright/run.py snapshot    # Accessibility tree
+uv run servers/playwright/run.py screenshot /tmp/test.png
+uv run servers/playwright/run.py click "button"
+```
 
 ## Agent relay (cross-repo messages)
 
