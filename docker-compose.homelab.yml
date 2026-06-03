@@ -77,6 +77,10 @@ services:
       - GITEA__security__INSTALL_LOCK=true
       - GITEA__webhook__ALLOWED_HOST_LIST=*       # allow the tailnet webhook target
       - GITEA__service__DISABLE_REGISTRATION=true # SSO via tsidp (task 4.4)
+      # Push-to-create: `git push` a new remote auto-creates the repo (private,
+      # per DEFAULT_PUSH_CREATE_PRIVATE=true). app.ini-only setting — no UI/API.
+      - GITEA__repository__ENABLE_PUSH_CREATE_USER=true
+      - GITEA__repository__ENABLE_PUSH_CREATE_ORG=true
 
   gitea-ts:
     image: tailscale/tailscale:stable
