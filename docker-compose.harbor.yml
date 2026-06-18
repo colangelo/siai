@@ -4,7 +4,7 @@
 
 services:
   harbor-core:
-    image: goharbor/harbor-core:v2.11.2
+    image: goharbor/harbor-core:v2.14.4
     container_name: siai-harbor-core
     restart: unless-stopped
     depends_on:
@@ -43,7 +43,7 @@ services:
       - devnet
 
   harbor-portal:
-    image: goharbor/harbor-portal:v2.11.2
+    image: goharbor/harbor-portal:v2.14.4
     container_name: siai-harbor-portal
     restart: unless-stopped
     depends_on:
@@ -61,7 +61,7 @@ services:
       - devnet
 
   harbor-registry:
-    image: goharbor/registry-photon:v2.11.2
+    image: goharbor/registry-photon:v2.14.4
     container_name: siai-harbor-registry
     restart: unless-stopped
     depends_on:
@@ -86,7 +86,7 @@ services:
       - devnet
 
   harbor-jobservice:
-    image: goharbor/harbor-jobservice:v2.11.2
+    image: goharbor/harbor-jobservice:v2.14.4
     container_name: siai-harbor-jobservice
     restart: unless-stopped
     depends_on:
@@ -117,7 +117,7 @@ services:
   # Optional: Trivy vulnerability scanner
   # Enabled when HARBOR_TRIVY_ENABLED=true
   harbor-trivy:
-    image: goharbor/trivy-adapter-photon:v2.14.1
+    image: goharbor/trivy-adapter-photon:v2.14.4
     container_name: siai-harbor-trivy
     restart: unless-stopped
     profiles:
