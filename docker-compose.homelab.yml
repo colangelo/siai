@@ -131,6 +131,12 @@ services:
       - WOODPECKER_GITEA_URL=https://gitea.cat-bluegill.ts.net
       - WOODPECKER_GITEA_CLIENT=${WOODPECKER_GITEA_CLIENT}
       - WOODPECKER_GITEA_SECRET=${WOODPECKER_GITEA_SECRET}
+      # Services that die at pipeline teardown (SIGTERM→SIGKILL→137) render GREEN
+      # instead of red. Needed for direction's parity-eval workflows (app-under-test
+      # runs as a `service`; Playwright keep-alive sockets outlast the stop grace).
+      # Server-side switch added in v3.14.0-rc.2 (PR #6448); server here is 3.15.0.
+      # Requested via agent relay 2026-06-19 (direction→home-network→siai).
+      - WOODPECKER_FORCE_IGNORE_SERVICE_FAILURE=true
 
   ci-ts:
     image: tailscale/tailscale:stable
