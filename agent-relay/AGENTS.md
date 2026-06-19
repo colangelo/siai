@@ -86,6 +86,55 @@ your conversation context.
 3. **Handle** — when done, the recipient **moves the file to `archive/`**, sets `status: done`, and may append a `## Resolution` section (what was done + commit refs).
 4. **Reply** — write a *new* message back to the sender's inbox with `thread:` set to the original filename. (A reply is just another message.)
 
+## Issues channel (Gitea) — for trackable cross-agent asks
+
+The file inbox above is for quick async handoffs. For a cross-agent ask you want
+**tracked and auditable** (tied to work, queryable, cross-referenceable), open a
+**Gitea issue** in the *recipient* repo instead. The two channels coexist — pick by
+whether you want a durable tracked item (issue) or a lightweight note (file).
+
+**Send** — open an issue in the target repo (`ac/<repo>`):
+
+- Title prefixed `[from <repo>]`; body = the ask + self-contained context + refs.
+- **Label it `agent-relay`.** Routing is the repo itself (one agent per repo).
+
+**Receive** — your inbox is `state=open` issues labelled `agent-relay` in your repo
+(scan at session start; a poller may also drive it — see below):
+
+```bash
+curl -s -H "Authorization: token $GITEA_TOKEN" \
+  "https://gitea.cat-bluegill.ts.net/api/v1/repos/ac/<repo>/issues?state=open&labels=agent-relay"
+```
+
+**Handle — never act silently.** Whatever you do, you MUST post a comment reporting
+the **conclusion *or* inconclusion** of your work (what you did + commit refs, or why
+you couldn't and what's still needed), then:
+
+- **Resolved** → remove the `agent-relay` label and **close** the issue.
+- **Inconclusive / blocked** → remove `agent-relay`, add **`agent-blocked`**, and leave
+  the issue **open** so it stays findable and isn't silently dropped.
+
+Removing `agent-relay` once processed is what stops a recurring poller from
+reprocessing the same message every cycle. `agent-blocked` is the "looked at it,
+couldn't finish" flag a human or another agent can pick up.
+
+**Polling (optional, infra-owned).** A tailnet-connected, always-on host can poll for
+new messages every ~10 min and only wake Claude when one exists (the detect step is a
+plain `curl`, no LLM):
+
+```bash
+n=$(curl -s -H "Authorization: token $GITEA_TOKEN" \
+  "https://gitea.cat-bluegill.ts.net/api/v1/repos/ac/<repo>/issues?state=open&labels=agent-relay" | jq length)
+[ "$n" -gt 0 ] && claude -p --bare "/check-relay" --allowedTools "Bash,Read,Edit"
+```
+
+`/loop` is in-session only and cloud Routines can't reach the tailnet Gitea, so use a
+local launchd/cron job on an always-on tailnet host. Standing this up is **infra's**
+(`home-network`) job. Each repo provides a `/check-relay` command for the handler.
+
+**Labels:** `agent-relay` = unprocessed inbound message; `agent-blocked` = processed
+but unresolved, needs attention.
+
 ## Persistence
 
 Relay files are git-tracked. Commit with a clear message and push so the relay is
