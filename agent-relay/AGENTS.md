@@ -23,6 +23,7 @@ repos (no human courier). Each participating repo has an `agent-relay/` with an
 | `home-network` | infra | `/Users/ac/_sync/ac-devops/_projects/Infra/home-network` | `agent-relay/inbox/` | `ac/home-network` |
 | `siai` | ci | `/Users/ac/_sync/ac-devops/_projects/AI/siai` | `agent-relay/inbox/` | `ac/siai` |
 | `direction` | app | `/Users/ac/_sync/Carlo/Projects/direction` | `agent-relay/inbox/` | `ac/direction` |
+| `macos-setup` | dev-env | `/Users/ac/Library/Mobile Documents/com~apple~CloudDocs/_setup/macos-setup` | `agent-relay/inbox/` | `ac/macos-setup` |
 
 All repos are local checkouts under the same user, so a sender writes to the
 recipient's path directly. Across machines, the inbox travels via Gitea (commit + push;
@@ -46,7 +47,7 @@ Get the stamp with `date '+%Y-%m-%d-%H%M'`.
 | `from_repo` | ✅ | sender repo (registry key) |
 | `from_agent` | ✅ | model + role, e.g. `Claude Opus 4.8 — infra` |
 | `to_repo` | ✅ | recipient repo (registry key) |
-| `to_agent` | ✅ | role or `any` (roles: `infra`/`ci`/`app`) |
+| `to_agent` | ✅ | role or `any` (roles: `infra`/`ci`/`app`/`dev-env`) |
 | `subject` | ✅ | one line |
 | `status` | ✅ | `new` → `read` → `done` |
 | `priority` |  | `low` / `normal` / `high` (default `normal`) |
@@ -67,12 +68,15 @@ priority: normal
 ---
 
 ## Action requested
+
 <the single concrete ask — what the recipient should DO>
 
 ## Context
+
 <why; only what the recipient needs, self-contained — they may lack your context>
 
 ## Refs
+
 <commits, file paths, 1Password item titles (not secrets), doc links>
 ```
 
