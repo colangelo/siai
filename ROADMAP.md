@@ -282,7 +282,7 @@ Features:
 
 ---
 
-## v0.4.0 - Harbor Container Registry
+## v0.4.0 - Harbor Container Registry ✅
 
 ### Goals
 

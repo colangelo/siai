@@ -26,14 +26,14 @@
   - Woodpecker secret configuration
 - [x] 2.2 Add `--dry-run` mode to harbor_setup.py
 - [x] 2.3 Update `config/setup.toml.example` with `[registry]` section
-- [ ] 2.4 Integrate Harbor setup into existing wizard (optional path)
+- [x] 2.4 Integrate Harbor setup into existing wizard (optional path) — DESCOPED, see notes
 
 ## 3. Pipeline Integration
 
 - [x] 3.1 Update `demo-repo/.woodpecker.yaml` to use registry abstraction:
   - Read `REGISTRY_URL` from secret or environment
   - Default to `127.0.0.1` (Gitea) if not set
-- [ ] 3.2 Create `demo-repo/.woodpecker.harbor.yaml` example (optional)
+- [x] 3.2 Create `demo-repo/.woodpecker.harbor.yaml` example (optional) — DESCOPED, see notes
 - [x] 3.3 Document secret configuration for both backends
 
 ## 4. Justfile Commands
@@ -55,11 +55,11 @@
 
 ## 6. Testing & Validation
 
-- [ ] 6.1 Test `just quickstart` without Harbor (regression)
-- [ ] 6.2 Test `just quickstart` with `REGISTRY_BACKEND=harbor`
-- [ ] 6.3 Test demo pipeline push to Harbor
-- [ ] 6.4 Test vulnerability scanning with Trivy enabled
-- [ ] 6.5 Test switching between registries
+- [x] 6.1 Test `just quickstart` without Harbor (regression)
+- [x] 6.2 Test `just quickstart` with `REGISTRY_BACKEND=harbor`
+- [x] 6.3 Test demo pipeline push to Harbor
+- [x] 6.4 Test vulnerability scanning with Trivy enabled
+- [x] 6.5 Test switching between registries
 - [x] 6.6 Update `just docker-health` to include Harbor status
 
 ## Dependencies
@@ -79,6 +79,13 @@ The following can be worked on simultaneously:
 
 ## Implementation Notes
 
-- Tasks 2.4 and 3.2 marked as optional and skipped for initial implementation
-- Task 6.1-6.5 require manual testing with running infrastructure
+- Tasks 2.4 and 3.2 optional — DESCOPED for good (2026-07-04): the single
+  registry-agnostic pipeline verified against both backends makes a separate
+  Harbor pipeline example and a wizard path unnecessary
+- Tasks 6.1-6.5 verified 2026-07-04 on the local stack (pipelines #3 push,
+  #12 tag→Harbor incl. Trivy scan, #15 manual→Gitea registry). Verification
+  surfaced and fixed real bugs: stale step4 container names, rootless-Gitea
+  volume paths, Harbor v2.x auth plumbing (token cert, htpasswd, portal
+  nginx, volume ownership, Traefik routing), demo pipeline YAML (colon in
+  echo, tag events, hard-required secret, dollar-brace substitution)
 - Task 6.6 completed as part of Justfile updates
