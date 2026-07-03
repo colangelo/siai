@@ -1,0 +1,27 @@
+# second-loop machine manifest — see docs/contract/loop-contract.md in
+# ~/_sync/dev/second-loop. This is a compose-stack + automation repo (the CI
+# platform itself, not an app): the gate is lint + docs conformance + compose
+# validation + the eval suite; serve is a static server so the browser verifier
+# can navigate the OKF docs bundle. Evals are file/structure-level ONLY — the
+# loop never starts the Docker stack or touches the live homelab (see RUNBOOK).
+
+[meta]
+prose = ".secondloop/RUNBOOK.md"
+base_branch = "main"
+branch_prefix = "loop/"
+
+[serve]
+start = "just serve"
+health_url = "http://127.0.0.1:8378/docs/index.md"
+ready_timeout_ms = 15000
+
+[gate]
+commands = ["just check"]
+
+[evals.t1]
+dir = "evals"
+file_template = "evals/{runId}_eval.py"
+run = "uv run --with pytest --with pyyaml pytest {file} --junitxml={report}"
+
+[artifacts]
+dir = ".secondloop/runs"
