@@ -64,19 +64,23 @@ def start_browser():
     if is_browser_running():
         return {"success": True, "message": "Browser already running", "port": CDP_PORT}
 
-    # Try common chromium locations (macOS)
-    chromium_paths = [
-        Path.home() / "Library" / "Caches" / "ms-playwright" / "chromium-1194" / "chrome-mac" / "Chromium.app" / "Contents" / "MacOS" / "Chromium",
-        Path.home() / "Library" / "Caches" / "ms-playwright" / "chromium-1187" / "chrome-mac" / "Chromium.app" / "Contents" / "MacOS" / "Chromium",
-        Path.home() / ".cache" / "ms-playwright" / "chromium-1194" / "chrome-linux" / "chrome",
-        Path.home() / ".cache" / "ms-playwright" / "chromium-1187" / "chrome-linux" / "chrome",
+    # Find a Playwright-managed Chromium — any installed version, newest first.
+    # Newer Playwright ships "Google Chrome for Testing.app", older "Chromium.app".
+    patterns = [
+        "chromium-*/chrome-mac*/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+        "chromium-*/chrome-mac*/Chromium.app/Contents/MacOS/Chromium",
+        "chromium-*/chrome-linux*/chrome",
     ]
+    caches = [
+        Path.home() / "Library" / "Caches" / "ms-playwright",  # macOS
+        Path.home() / ".cache" / "ms-playwright",              # Linux
+    ]
+    candidates = []
+    for cache in caches:
+        for pattern in patterns:
+            candidates.extend(sorted(cache.glob(pattern), reverse=True))
 
-    chromium_path = None
-    for p in chromium_paths:
-        if p.exists():
-            chromium_path = p
-            break
+    chromium_path = candidates[0] if candidates else None
 
     if not chromium_path:
         # Use system Chrome as fallback
