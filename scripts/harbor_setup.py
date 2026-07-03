@@ -18,7 +18,6 @@ Environment Variables:
 from __future__ import annotations
 
 import argparse
-import base64
 import os
 import sys
 import tomllib
@@ -136,7 +135,7 @@ def create_robot_account(
     existing = get_robot_account(client, name)
     if existing:
         print(f"  Robot account 'robot${name}' already exists (id={existing.get('id')})")
-        print(f"    Note: Token was only shown at creation time")
+        print("    Note: Token was only shown at creation time")
         return True, None
 
     if dry_run:
@@ -167,7 +166,7 @@ def create_robot_account(
     payload = {
         "name": name,
         "duration": -1,  # Never expires
-        "description": f"Robot account for CI pipelines",
+        "description": "Robot account for CI pipelines",
         "disable": False,
         "level": "system",
         "permissions": [
@@ -191,7 +190,7 @@ def create_robot_account(
         robot_name = data.get("name", f"robot${name}")
         print(f"  Created robot account '{robot_name}'")
         print(f"    Token: {token}")
-        print(f"    (Save this token - it won't be shown again!)")
+        print("    (Save this token - it won't be shown again!)")
         return True, token
     else:
         print(f"  Failed to create robot account '{name}': {resp.status_code}")

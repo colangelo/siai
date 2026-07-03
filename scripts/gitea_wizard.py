@@ -37,7 +37,6 @@ Usage (non-interactive):
 from __future__ import annotations
 
 import argparse
-import os
 import secrets
 import string
 import sys

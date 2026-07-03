@@ -182,7 +182,7 @@ def update_admin(
         if payload.get("email"):
             print(f"  Email changed to '{payload['email']}'")
         if payload.get("password"):
-            print(f"  Password changed")
+            print("  Password changed")
         return True, actual_username
     else:
         print(f"  Failed to update admin: {resp.status_code}")

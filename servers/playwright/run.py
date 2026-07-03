@@ -64,13 +64,6 @@ def start_browser():
     if is_browser_running():
         return {"success": True, "message": "Browser already running", "port": CDP_PORT}
 
-    # Find chromium path from playwright
-    result = subprocess.run(
-        ["python", "-c", "from playwright._impl._driver import compute_driver_executable; print(compute_driver_executable())"],
-        capture_output=True, text=True
-    )
-    driver_path = Path(result.stdout.strip()).parent
-
     # Try common chromium locations (macOS)
     chromium_paths = [
         Path.home() / "Library" / "Caches" / "ms-playwright" / "chromium-1194" / "chrome-mac" / "Chromium.app" / "Contents" / "MacOS" / "Chromium",

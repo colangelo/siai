@@ -208,7 +208,7 @@ def main() -> None:
         "--config",
         "-c",
         type=Path,
-        help=f"Path to TOML config file with [[oauth_apps]] section",
+        help="Path to TOML config file with [[oauth_apps]] section",
     )
     parser.add_argument(
         "--name",

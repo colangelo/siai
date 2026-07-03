@@ -7,6 +7,41 @@ default:
     @just --list
 
 # ══════════════════════════════════════════════════════════════════════════════
+# QUALITY GATE - lint / test / check (what CI and second-loop run)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Lint all Python (automation scripts, playwright runner, demo app)
+lint:
+    uv run --with ruff ruff check scripts servers demo-repo
+
+# Run the eval suite (repo sanity checks + frozen second-loop evals in evals/)
+test *args:
+    uv run --with pytest --with pyyaml pytest evals/ -q "$@"
+
+# Conformance check for the docs/ OKF bundle (exit-code truth)
+docs-check:
+    node ~/_sync/dev/second-loop/src/okf.ts check docs
+
+# Regenerate docs/index.md from frontmatter. Run after adding/editing any doc.
+docs-index:
+    node ~/_sync/dev/second-loop/src/okf.ts index docs
+
+# Validate every compose layering parses (client-side only, no daemon needed)
+compose-check:
+    docker compose -f docker-compose.yml config -q
+    docker compose -f docker-compose.yml -f docker-compose.harbor.yml config -q
+    docker compose -f docker-compose.yml -f docker-compose.homelab.yml config -q 2>/dev/null
+    docker compose -f docker-compose.yml -f docker-compose.homelab.yml -f docker-compose.homelab.smoke.yml config -q 2>/dev/null
+
+# The deterministic gate: lint + docs conformance + compose validation + evals
+check: lint docs-check compose-check test
+
+# Static file server over the repo (loopback, non-default port) — lets a browser
+# (or the second-loop verifier) navigate the docs bundle from docs/index.md.
+serve port="8378":
+    python3 -m http.server {{port}} --bind 127.0.0.1
+
+# ══════════════════════════════════════════════════════════════════════════════
 # QUICKSTART - Run this for fully automated setup
 # ══════════════════════════════════════════════════════════════════════════════
 
