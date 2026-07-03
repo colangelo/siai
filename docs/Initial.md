@@ -1,3 +1,11 @@
+---
+type: design
+title: "Initial design — OSS CI/CD local stack"
+description: "The original design notes the repo grew from: Gitea + Woodpecker + Traefik compose stack, Caddy alternative, and the production-style .woodpecker.yml template (Python + K8s + Helm + Terraform + Vault)."
+tags: [woodpecker, gitea, design, compose]
+timestamp: 2025-11-29
+---
+
 # OSS CI/CD local solution
 
 Perfect use case for Woodpecker 🙂 Let’s put together:

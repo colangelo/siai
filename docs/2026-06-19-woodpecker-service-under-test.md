@@ -1,3 +1,11 @@
+---
+type: learning
+title: "Woodpecker: service-under-test exits 137 at teardown"
+description: "A commands:-based service runs under a pipe shell as PID 1 that never forwards SIGTERM → SIGKILL → exit 137. Fix: entrypoint exec-form so the server is PID 1; WOODPECKER_FORCE_IGNORE_SERVICE_FAILURE is the server-wide green-icon override."
+tags: [woodpecker, ci, services]
+timestamp: 2026-06-19
+---
+
 # Woodpecker: long-lived service-under-test exits 137 at teardown
 
 **Date:** 2026-06-19

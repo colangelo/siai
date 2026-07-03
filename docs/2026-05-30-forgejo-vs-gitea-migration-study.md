@@ -1,3 +1,11 @@
+---
+type: exploration
+title: "Forgejo vs Gitea — migration study"
+description: "DEFERRED point-in-time research record (2026-05-30): findings, flank-then-replace plan, risk audit, and open doubts for a possible Gitea → Forgejo migration. Not a committed decision."
+tags: [gitea, forgejo, migration]
+timestamp: 2026-05-30
+---
+
 # Forgejo vs Gitea — migration study (siai homelab)
 
 > **Status: DEFERRED / for-reconsideration.** This is a point-in-time research

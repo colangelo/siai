@@ -1,3 +1,11 @@
+---
+type: learning
+title: "Pipeline clone DNS + tailnet reach (VM 107)"
+description: "Why every pipeline clone failed on the homelab stack: Docker substitutes public DNS for the loopback resolver (no MagicDNS in pipeline containers) + a missing tailnet ACL grant to ts-siai-gitea:443. Fixed at platform layer for all repos."
+tags: [woodpecker, dns, tailscale, homelab]
+timestamp: 2026-05-28
+---
+
 # Pipeline clone DNS + tailnet reach (VM 107)
 
 **Date:** 2026-05-28

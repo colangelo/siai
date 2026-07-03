@@ -1,3 +1,11 @@
+---
+type: reference
+title: "Woodpecker pipeline notes"
+description: "Expected repo layout and Woodpecker UI secrets for the production pipeline template (.woodpecker.yml): registry, Vault, AWS/Terraform, kubeconfig."
+tags: [woodpecker, secrets, pipeline]
+timestamp: 2025-11-29
+---
+
 # Woodpecker pipeline notes
 
 Expected repo layout for the template:

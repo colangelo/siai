@@ -1,3 +1,11 @@
+---
+type: guide
+title: "Platform access guide (agents)"
+description: "How AI agents interact with the local siai stack: Gitea API tokens, Woodpecker API, docker registry commands, Playwright browser automation, and the Docker network architecture."
+tags: [gitea, woodpecker, api, automation]
+timestamp: 2025-11-29
+---
+
 # SiAI Platform Access Guide
 
 This document describes how AI agents can interact with the SiAI CI/CD platform (Gitea + Woodpecker CI).

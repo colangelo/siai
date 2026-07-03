@@ -1,13 +1,27 @@
+---
+type: runbook
+title: "Onboard a repository to siai CI/CD"
+description: "Step-by-step onboarding of a real repo to the homelab stack (Gitea → Woodpecker → Harbor on VM 107): activate, trust, secrets, pipeline template. Canonical consumer standard lives in home-network's ci-release-standard."
+tags: [onboarding, woodpecker, harbor, homelab]
+timestamp: 2026-05-30
+---
+
 # Onboard a repository to siai CI/CD
 
 How to onboard a real (non-demo) repository to the homelab CI/CD stack — Gitea →
 Woodpecker → Harbor on px1 (VM 107, shipped in v0.4.1). Build + push only; deploy
 stays consumer-owned. Follow the steps in order; each is verifiable.
 
+> **Canonical consumer standard:** portable CI/release guidance lives in
+> [`home-network/docs/ci-release-standard.md`](https://gitea.cat-bluegill.ts.net/ac/home-network/src/branch/main/docs/ci-release-standard.md).
+> Keep shared auth, release, and debugging guidance there. This document is the
+> siai-specific companion for Harbor project scope, Woodpecker trust, templates,
+> and platform reachability.
+
 > **Reference consumer:** `ac/direction`. It is onboarded and CI-built end-to-end
 > (push → lint+test gate; tag → `harbor.cat-bluegill.ts.net/direction/{api,web,mcp}`),
-> shipping through tag **`v0.26.8`**. Its live `.woodpecker.yml` is the canonical
-> example; this runbook is the generalization of what made it work.
+> shipping through tag **`v0.26.8`**. Its live `.woodpecker.yml` is the proven
+> image-build example for this template.
 
 ## Prerequisites
 
@@ -113,10 +127,10 @@ The template gives you a lint + test **gate** (push / PR / manual) and a
   ```
   → builds + pushes `harbor.cat-bluegill.ts.net/<PROJECT>/<IMAGE>:0.0.1`.
   Verify the artifact in the Harbor UI.
-- **Triggers, re-runs, force-running build-push, and the verification chain**
-  (webhook → pipeline → agent → clone) are documented in Direction's
-  `direction/docs/guide-ci-triggers.md` — the live reference for everything
-  beyond the production `git push` / `git tag` path.
+- **Triggers, re-runs, release webhooks, and common debugging** are covered by
+  the canonical consumer standard in home-network. Direction's
+  `direction/docs/guide-ci-triggers.md` remains the live reference for its own
+  verification chain beyond the production `git push` / `git tag` path.
 
 ## Running an end-to-end / browser suite (services + app-under-test)
 

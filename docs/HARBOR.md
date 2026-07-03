@@ -1,3 +1,11 @@
+---
+type: guide
+title: "Harbor container registry"
+description: "Setup and operation of the optional Harbor registry backend (REGISTRY_BACKEND=harbor): architecture, projects/robot accounts, Trivy scanning, and switching between Gitea and Harbor registries."
+tags: [harbor, registry, trivy]
+timestamp: 2025-11-29
+---
+
 # Harbor Container Registry
 
 Harbor is an optional enterprise-grade container registry that can replace Gitea's built-in registry. It provides vulnerability scanning, RBAC, image signing, and more.

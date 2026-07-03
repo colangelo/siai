@@ -6,9 +6,20 @@ Guidance for AI agents (Claude Code, Codex, omp) working with code in this repos
 
 Local OSS CI/CD stack: **Gitea + Woodpecker CI + Traefik** (Caddy alternative available). This is a POC/template for self-hosted Git + CI pipelines with Docker-based execution.
 
+**Docs entry point:** [`docs/index.md`](docs/index.md) — an OKF bundle (every doc
+carries typed YAML frontmatter; the index is generated). Start there instead of
+globbing. After adding/editing a doc, run `just docs-index`; `just docs-check` is
+the conformance gate.
+
 ## Common Commands
 
 ```bash
+# === QUALITY GATE ===
+just check           # Full gate: lint + docs-check + compose-check + test
+just lint            # ruff over scripts/ servers/ demo-repo/
+just test            # pytest over evals/ (repo sanity + frozen second-loop evals)
+just compose-check   # Validate every compose layering parses
+
 # === QUICKSTART (recommended) ===
 just quickstart      # 🚀 Fully automated setup (does everything)
 
@@ -250,7 +261,7 @@ check `agent-relay/inbox/` for messages with `status: new` and handle or acknowl
 them before other work:
 
 ```bash
-grep -l 'status: new' agent-relay/inbox/*.md 2>/dev/null
+find agent-relay/inbox -type f -name '*.md' -exec grep -l 'status: new' {} + 2>/dev/null || true
 ```
 
 To message another repo's agent, drop a file in **that repo's** `agent-relay/inbox/`
