@@ -67,6 +67,17 @@ def test_scripts_are_pep723():
     assert not missing, f"scripts without PEP 723 metadata: {missing}"
 
 
+def test_gitea_rootless_volume_paths():
+    """Regression: rootless Gitea stores data in /var/lib/gitea and config in
+    /etc/gitea — a bare /data mount is inert, leaving repos in the container
+    layer where any recreate wipes them (hit locally 2026-07-04; same bug
+    previously hit on the homelab, see docker-compose.homelab.yml)."""
+    text = (REPO / "docker-compose.yml").read_text()
+    assert "gitea-data:/var/lib/gitea" in text
+    assert "gitea-config:/etc/gitea" in text
+    assert "gitea-data:/data" not in text
+
+
 def test_homelab_keeps_force_ignore_service_failure():
     """Regression: WOODPECKER_FORCE_IGNORE_SERVICE_FAILURE must stay in the
     homelab wpk-server env (relay ask 2026-06-19; a redeploy without it breaks

@@ -71,7 +71,13 @@ services:
       # Service
       - GITEA__service__DISABLE_REGISTRATION=false
     volumes:
-      - gitea-data:/data
+      # ROOTLESS image paths: config in /etc/gitea, data (git repos, JWT keys,
+      # packages) in /var/lib/gitea — NOT /data. A `/data` mount is inert for
+      # this image; repos would sit in the container layer and be LOST on any
+      # recreate (same bug once hit on the homelab — see
+      # docker-compose.homelab.yml gitea volumes comment).
+      - gitea-data:/var/lib/gitea
+      - gitea-config:/etc/gitea
     labels:
       - "traefik.enable=true"
       # Main Gitea UI
@@ -158,3 +164,4 @@ networks:
 volumes:
   postgres-data:
   gitea-data:
+  gitea-config:
