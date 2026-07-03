@@ -1,5 +1,8 @@
+# NB: tag must be listed HERE too — the pipeline-level filter runs before the
+# per-step `when: event: [manual, tag]` gates, so without it tag pushes never
+# create a pipeline at all.
 when:
-  - event: [push, pull_request, manual]
+  - event: [push, pull_request, tag, manual]
 
 # Override default clone to use internal Docker network hostname
 clone:
@@ -34,9 +37,13 @@ steps:
       REGISTRY_URL:
         from_secret: registry_url
     commands:
-      # Use registry URL from secret, default to Gitea (127.0.0.1)
-      - export REGISTRY="${REGISTRY_URL:-127.0.0.1}"
-      - echo "Building for registry: $REGISTRY"
+      # Use registry URL from secret, default to Gitea (127.0.0.1).
+      # No dollar-brace expressions here — not even in COMMENTS: Woodpecker's
+      # substitution engine parses them anywhere in the file, secrets are not
+      # in its substitution set, and it rejects escaped/default forms. Bare
+      # $VAR passes through to the shell untouched.
+      - REGISTRY=$REGISTRY_URL; [ -n "$REGISTRY" ] || REGISTRY=127.0.0.1; export REGISTRY
+      - 'echo "Building for registry: $REGISTRY"'
       - docker build -t $REGISTRY/admin/demo-app:${CI_COMMIT_SHA:0:8} .
       - docker tag $REGISTRY/admin/demo-app:${CI_COMMIT_SHA:0:8} $REGISTRY/admin/demo-app:latest
       - docker images $REGISTRY/admin/demo-app
@@ -48,27 +55,24 @@ steps:
     when:
       - event: [manual, tag]
     environment:
-      # Registry credentials - works for both Gitea and Harbor
-      # For Gitea: use gitea_token secret with admin username
-      # For Harbor: use registry_username/registry_password secrets
+      # Registry credentials — same pair works for both backends:
+      # - Harbor: robot/admin account (registry_url = 127.0.0.1:8082)
+      # - Gitea:  gitea user + token/password (registry_url = 127.0.0.1)
+      # NB: every from_secret here MUST exist in Woodpecker (v3 hard-errors on
+      # missing secrets — no implicit optional fallbacks).
       REGISTRY_URL:
         from_secret: registry_url
       REGISTRY_USERNAME:
         from_secret: registry_username
       REGISTRY_PASSWORD:
         from_secret: registry_password
-      # Fallback for Gitea (legacy support)
-      GITEA_TOKEN:
-        from_secret: gitea_token
     commands:
-      - export REGISTRY="${REGISTRY_URL:-127.0.0.1}"
-      - echo "Pushing to registry: $REGISTRY"
-      # Login with registry credentials (Harbor) or Gitea token (fallback)
+      # No dollar-brace expressions (even in comments) — see the build step.
+      - REGISTRY=$REGISTRY_URL; [ -n "$REGISTRY" ] || REGISTRY=127.0.0.1; export REGISTRY
+      - 'echo "Pushing to registry: $REGISTRY"'
       - |
         if [ -n "$REGISTRY_USERNAME" ] && [ -n "$REGISTRY_PASSWORD" ]; then
           echo "$REGISTRY_PASSWORD" | docker login $REGISTRY --username "$REGISTRY_USERNAME" --password-stdin
-        elif [ -n "$GITEA_TOKEN" ]; then
-          echo "$GITEA_TOKEN" | docker login $REGISTRY --username admin --password-stdin
         else
           echo "Warning: No registry credentials configured"
         fi
