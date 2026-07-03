@@ -1,0 +1,26 @@
+# siai backlog schema — extends the gitea-backlog skill's general defaults with
+# project specifics. The declared vocabulary governs the agent-drivable Gitea
+# Issues backlog (scoped labels, since Gitea's Projects board has no REST API).
+#
+# Origin: direction's `gitea-backlog-tracking` design. Resolved + synced by the
+# global `gitea-backlog` skill. "Done" = closed, never a label.
+# `agent-relay`/`agent-blocked` are a SEPARATE channel (declared `reserved` in
+# the general schema) — a backlog item is never `agent-relay` (the relay poller
+# acts on that label). See agent-relay/AGENTS.md.
+
+[schema]
+version = 1
+extends = "general"      # type/ status/ horizon/ priority/ needs/ + reserved come from general
+
+# Single-user repo: horizon/ is enough — drop the priority axis.
+[scopes.priority]
+enabled = false
+
+# siai subsystems (non-exclusive; an issue may span several).
+# gitea/woodpecker/harbor = the stack services; homelab = the px1 (VM 107)
+# deployment incl. tailnet sidecars; local = the .localhost POC + Traefik;
+# scripts = the Python automation; demo = demo-repo template.
+[scopes.area]
+exclusive = false
+color = "#1d76db"
+values = ["gitea", "woodpecker", "harbor", "homelab", "local", "scripts", "demo", "docs", "meta"]
