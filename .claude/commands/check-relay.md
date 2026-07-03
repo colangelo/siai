@@ -13,7 +13,7 @@ Get the token: `GITEA_TOKEN=$(printf 'protocol=https\nhost=gitea.cat-bluegill.ts
 ## 1. File inbox
 
 ```bash
-grep -l 'status: new' agent-relay/inbox/*.md 2>/dev/null
+find agent-relay/inbox -type f -name '*.md' -exec grep -l 'status: new' {} + 2>/dev/null || true
 ```
 
 For each: read it, do the work, then **archive it** — `git mv` to `agent-relay/archive/`,

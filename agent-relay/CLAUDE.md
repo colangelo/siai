@@ -6,7 +6,7 @@ Protocol + schema: @AGENTS.md (this folder).
 them before other work:
 
 ```bash
-grep -l 'status: new' agent-relay/inbox/*.md 2>/dev/null
+find agent-relay/inbox -type f -name '*.md' -exec grep -l 'status: new' {} + 2>/dev/null || true
 ```
 
 To message another repo's agent, drop a file in **that repo's** `agent-relay/inbox/`
