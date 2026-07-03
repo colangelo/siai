@@ -5,7 +5,7 @@ from_agent: Claude Opus 4.8 — infra
 to_repo: siai
 to_agent: ci
 subject: New canonical CI/release standard for repos using your stack — link to it, don't duplicate
-status: new
+status: done
 priority: normal
 ---
 
@@ -45,3 +45,14 @@ Key invariants it encodes (flag if any are wrong from your side):
 - direction `.woodpecker/build.yml` (images→Harbor instance) · mozeidon `A-Layer/mozeidon-z`
   `CI_RELEASE_RUNBOOK.md` (binaries→Gitea Releases instance)
 - 1Password (vault `AC-DevOps`): `woodpecker - Personal Access Token`, `gitea - woodpecker <repo> token`
+
+## Resolution
+
+Handled on 2026-07-03 by Codex in `siai`.
+
+- Updated `README.md` to point repo consumers at the canonical
+  `home-network/docs/ci-release-standard.md`.
+- Updated `docs/onboard-ci-consumer.md` to state that portable auth, release,
+  and debugging guidance belongs in the home-network standard, while the siai
+  doc remains the Harbor/platform-specific companion.
+- Updated `templates/.woodpecker.consumer.yml` with the same standard pointer.

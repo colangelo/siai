@@ -49,7 +49,9 @@ docker compose -f docker-compose.yml -f docker-compose.homelab.yml \
 
 ### Onboarding a repo to CI
 
-To build a real project on this stack (Gitea → Woodpecker → Harbor), follow
+Consumer-side CI/release guidance is centralized in the home-network standard:
+[`home-network/docs/ci-release-standard.md`](https://gitea.cat-bluegill.ts.net/ac/home-network/src/branch/main/docs/ci-release-standard.md).
+For siai-specific Harbor/agent details, use
 [`docs/onboard-ci-consumer.md`](docs/onboard-ci-consumer.md) and start from the
 [`templates/.woodpecker.consumer.yml`](templates/.woodpecker.consumer.yml)
 pipeline template. Reference consumer: `ac/direction` (CI-built through `v0.26.8`).

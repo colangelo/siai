@@ -5,6 +5,8 @@
 #
 # Runs on the homelab Woodpecker agent (VM 107, amd64, docker backend).
 # Full onboarding runbook: siai/docs/onboard-ci-consumer.md
+# Portable auth/release/debugging standard:
+# home-network/docs/ci-release-standard.md
 #
 # ── Onboarding (one-time, before this pipeline can run) ────────────────────────
 #   1. Harbor: a `<PROJECT>` project exists and robot$siai-ci has push/pull on it.
