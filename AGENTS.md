@@ -112,13 +112,13 @@ siai/
 
 ## Architecture
 
-| Container     | Image                      | Description                                      |
-|---------------|----------------------------|--------------------------------------------------|
-| ci-traefik    | traefik:v3                 | Reverse proxy, routes `*.localhost` domains      |
-| ci-postgres   | postgres:18                | Shared database for Gitea and Woodpecker         |
-| gitea         | gitea/gitea:latest-rootless| Git server with webhook support                  |
-| wpk-server    | woodpecker-server:v3       | CI coordinator (HTTP 8000, gRPC 9000)            |
-| wpk-agent     | woodpecker-agent:v3        | Job runner using host Docker socket              |
+| Container       | Image                      | Description                                      |
+|-----------------|----------------------------|--------------------------------------------------|
+| siai-traefik    | traefik:v3                 | Reverse proxy, routes `*.localhost` domains      |
+| siai-postgres   | postgres:18                | Shared database for Gitea and Woodpecker         |
+| siai-gitea      | gitea/gitea:latest-rootless| Git server with webhook support                  |
+| siai-wpk-server | woodpecker-server:v3       | CI coordinator (HTTP 8000, gRPC 9000)            |
+| siai-wpk-agent  | woodpecker-agent:v3        | Job runner using host Docker socket              |
 
 All services communicate on `devnet` Docker network. PostgreSQL creates `gitea` and `woodpecker` databases on init via `config/init-db.sql`.
 

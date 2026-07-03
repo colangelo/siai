@@ -212,7 +212,9 @@ def print_woodpecker_secret_instructions(
     print("\n1. Go to http://ci.localhost")
     print("2. Navigate to your repository settings")
     print("3. Add the following secrets:")
-    print(f"\n   registry_url = {registry_url}")
+    # docker push endpoint is the 127.0.0.1 port-publish (plain http allowed),
+    # NOT the registry.localhost UI/API host — see docs/HARBOR.md.
+    print("\n   registry_url = 127.0.0.1:8082")
     print(f"   registry_username = robot${robot_name}")
     if token:
         print(f"   registry_password = {token}")

@@ -157,14 +157,14 @@ step4-configure:
     [ -f .env ] && source .env
 
     echo "=== Initializing Gitea database ==="
-    docker exec gitea gitea migrate
+    docker exec siai-gitea gitea migrate
     echo ""
 
     echo "=== Creating admin user ==="
     ADMIN_USER="${GITEA_ADMIN:-admin}"
     ADMIN_EMAIL="${GITEA_ADMIN_EMAIL:-admin@localhost}"
     ADMIN_PASS="${GITEA_ADMIN_PASSWORD:-admin123}"
-    docker exec gitea gitea admin user create \
+    docker exec siai-gitea gitea admin user create \
         --username "$ADMIN_USER" \
         --password "$ADMIN_PASS" \
         --email "$ADMIN_EMAIL" \
@@ -260,6 +260,36 @@ harbor-up:
     fi
     unset WOODPECKER_GITEA_CLIENT WOODPECKER_GITEA_SECRET WOODPECKER_AGENT_SECRET 2>/dev/null || true
 
+    # Token-signing cert pair (core signs registry-auth tokens; registry
+    # verifies with root.crt — see registry-config.yml). Generated once,
+    # gitignored. CN must match the token issuer.
+    if [ ! -f config/harbor/private_key.pem ] || [ ! -f config/harbor/root.crt ]; then
+        echo "Generating Harbor token-signing cert pair (config/harbor/)..."
+        # PKCS#1 ("BEGIN RSA PRIVATE KEY") — core's token signer rejects PKCS#8.
+        openssl genrsa -traditional -out config/harbor/private_key.pem 4096 2>/dev/null
+        openssl req -x509 -key config/harbor/private_key.pem -out config/harbor/root.crt \
+            -days 3650 -subj "/CN=harbor-token-issuer" 2>/dev/null
+        chmod 644 config/harbor/private_key.pem config/harbor/root.crt
+    fi
+
+    # htpasswd for core → registry basic auth (bcrypt; password =
+    # HARBOR_REGISTRY_SECRET, mirrored into core's REGISTRY_CREDENTIAL_*).
+    # Regenerated when missing or when the secret changes.
+    if ! htpasswd -vbB config/harbor/registry-passwd harbor_registry_user \
+            "${HARBOR_REGISTRY_SECRET:-harbor-registry-secret}" >/dev/null 2>&1; then
+        echo "Generating Harbor registry htpasswd (config/harbor/registry-passwd)..."
+        htpasswd -cbB config/harbor/registry-passwd harbor_registry_user \
+            "${HARBOR_REGISTRY_SECRET:-harbor-registry-secret}" 2>/dev/null
+        chmod 644 config/harbor/registry-passwd
+    fi
+
+    # Harbor images run as uid 10000 (harbor/scanner), but fresh named volumes
+    # are root-owned → chown the writable ones up front.
+    for vol in siai_harbor-registry-data siai_harbor-trivy-data siai_harbor-jobservice-data; do
+        docker volume create "$vol" >/dev/null
+        docker run --rm -v "$vol":/fix busybox chown -R 10000:10000 /fix
+    done
+
     # Check if Trivy should be enabled
     PROFILES=""
     if [ "${HARBOR_TRIVY_ENABLED:-false}" = "true" ]; then
@@ -305,8 +335,10 @@ harbor-login:
     HARBOR_USER="${1:-admin}"
     HARBOR_PASS="${HARBOR_ADMIN_PASSWORD:-Harbor12345}"
     echo "Logging in to Harbor as $HARBOR_USER..."
-    echo "$HARBOR_PASS" | docker login registry.localhost --username "$HARBOR_USER" --password-stdin
-    echo "✓ Logged in to registry.localhost"
+    # 127.0.0.1:8082 = the plain-http docker endpoint (see docs/HARBOR.md);
+    # registry.localhost is UI/API only — docker would try TLS against it.
+    echo "$HARBOR_PASS" | docker login 127.0.0.1:8082 --username "$HARBOR_USER" --password-stdin
+    echo "✓ Logged in to Harbor (127.0.0.1:8082)"
 
 # Show active registry configuration and status
 registry-status:
@@ -323,15 +355,15 @@ registry-status:
         echo "Push format:    registry.localhost/<project>/<image>:<tag>"
         echo ""
         echo "=== Harbor Service Status ==="
-        docker compose -f docker-compose.yml -f docker-compose.harbor.yml ps --format "table {{{{.Name}}}}\t{{{{.Status}}}}" 2>/dev/null | grep -E "^(NAME|harbor)" || echo "Harbor services not running"
+        docker ps --filter "name=siai-harbor" 2>/dev/null | grep -E "harbor" | awk '{print $NF "\t" $8, $9, $10}' || echo "Harbor services not running"
         echo ""
         echo "Trivy enabled: ${HARBOR_TRIVY_ENABLED:-false}"
         echo ""
-        # Check if Harbor API is responding
+        # Check if Harbor API is responding (version needs auth; skip if absent)
         if curl -sf http://registry.localhost/api/v2.0/systeminfo > /dev/null 2>&1; then
             echo "Harbor API: ✓ responding"
             VERSION=$(curl -sf http://registry.localhost/api/v2.0/systeminfo | grep -o '"harbor_version":"[^"]*"' | cut -d'"' -f4)
-            [ -n "$VERSION" ] && echo "Harbor version: $VERSION"
+            if [ -n "$VERSION" ]; then echo "Harbor version: $VERSION"; fi
         else
             echo "Harbor API: ✗ not responding"
         fi

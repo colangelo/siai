@@ -135,13 +135,20 @@ permissions = ["push", "pull"]
 
 ### From Local Machine
 
+> **Push endpoint is `127.0.0.1:8082`, not `registry.localhost`** (verified
+> 2026-07-04): Docker only auto-allows plain-http registries on `127.0.0.1`,
+> so pushes to `registry.localhost` are attempted over TLS and fail. The
+> compose publishes harbor-core on `127.0.0.1:8082` for exactly this — same
+> reason the Gitea registry path uses `127.0.0.1`. UI/API stay on
+> `registry.localhost`.
+
 ```bash
 # Login to Harbor
 just harbor-login
 
 # Build and push
-docker build -t registry.localhost/library/myapp:v1.0 .
-docker push registry.localhost/library/myapp:v1.0
+docker build -t 127.0.0.1:8082/library/myapp:v1.0 .
+docker push 127.0.0.1:8082/library/myapp:v1.0
 ```
 
 ### From CI Pipeline
@@ -150,7 +157,7 @@ Configure Woodpecker secrets:
 
 | Secret | Value |
 |--------|-------|
-| `registry_url` | `registry.localhost` |
+| `registry_url` | `127.0.0.1:8082` |
 | `registry_username` | `robot$ci` (from `just harbor-setup`) |
 | `registry_password` | Token from robot account creation |
 
